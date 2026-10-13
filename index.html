@@ -206,13 +206,14 @@ body.is-dragging{user-select:none;cursor:grabbing}
 .ach-row>img,.ach-row>svg{width:38px;height:38px;border-radius:8px;display:block}
 .ach-row .r-open{border:0;background:transparent;padding:0;text-align:left;min-width:0}
 .ach-row .r-open:hover .r-name{text-decoration:underline}
-.ach-row.is-done>img{filter:saturate(.3);opacity:.75}
-.ach-row.is-done .r-name{color:var(--muted)}
+.ach-row.is-done{background:linear-gradient(90deg,#1d3a2ecc,#1d3a2e55);box-shadow:inset 3px 0 0 var(--ok)}
+.ach-row.is-done .r-name{color:#c4f5d6}
 .r-name{font-weight:700;overflow-wrap:anywhere}
 .r-cat{font-size:.78rem;color:var(--muted);overflow-wrap:anywhere}
 .state-pill{font-size:.75rem;font-weight:800;border-radius:999px;padding:2px 9px;white-space:nowrap;border:1.5px solid var(--pc);color:var(--pc);background:transparent}
 button.state-pill:not(:disabled):hover{background:var(--pcs)}
 .state-pill.done{background:var(--pc);color:#14101f}
+.state-pill.fin{background:var(--ok);border-color:var(--ok);color:#0d2416}
 .state-pill.none{border-color:var(--line);color:var(--muted)}
 .obj-add{padding:10px 16px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:8px}
 
@@ -311,7 +312,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 .who-mini .mini .bar{width:90px;background:var(--line)}
 .obj .bar{background:var(--line)}
 .task-row .tk{width:38px;height:38px;border-radius:8px;display:grid;place-items:center;background:var(--sunk);color:var(--muted);font-size:1.1rem}
-.task-row.is-done .r-name{color:var(--muted);text-decoration:line-through}
+.task-row.is-done .r-name{color:#c4f5d6}
 .pchecks{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
 .add-row{display:flex;border-top:1px dashed var(--line)}
 .add-row .add-toggle{border-top:0;flex:1}
@@ -332,6 +333,14 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 .tip-c .g{color:#f5c35b}.tip-c .s{color:#c0c4cc}.tip-c .c{color:#c87b45}
 .tip-load{color:var(--muted)}
 
+.tip.tip-ach{width:460px;padding:0;overflow:hidden}
+.ta{display:grid;grid-template-columns:130px 1fr}
+.ta-side{display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 10px;border-right:1px solid var(--line);background:#00000025}
+.ta-side .g-icon{width:64px;height:64px}
+.ta-main{padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.ta-n{font-weight:800;font-size:1.05rem;color:#fff}
+.ta-d{color:#e4e6ec}
+
 /* fiche : sous-succès, collections */
 .g-back{border:0;background:transparent;color:var(--g-muted);font-weight:700;font-size:.85rem;padding:0;text-align:left;align-self:flex-start}
 .g-back:hover{color:#fff}
@@ -343,8 +352,8 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 .g-sub{display:grid;grid-template-columns:auto 1fr 120px;gap:12px;align-items:center;background:var(--g-row);border:1px solid transparent;border-radius:6px;padding:7px 10px;text-align:left;color:#dfe3ee;font-weight:600;font-size:.9rem;width:100%}
 .g-sub:hover{border-color:#ffffff30}
 .g-sub img{width:28px;height:28px;border-radius:6px;display:block}
-.g-sub.on{color:var(--g-muted)}
-.g-sub.on img{filter:saturate(.4);opacity:.7}
+.g-sub.on{background:var(--g-ok-bg);border-color:#2e5a4a;color:var(--g-ok-ink)}
+.g-sub .done-lbl{color:var(--g-ok);font-weight:800;font-size:.8rem;text-align:right}
 .g-sub .bar{background:#ffffff12;height:8px}
 .g-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px}
 .tile{position:relative;aspect-ratio:1;border:2px solid var(--rc,#3a4256);border-radius:6px;padding:0;background:#0006;overflow:hidden;max-width:100%}
@@ -638,6 +647,30 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     tipEl.style.left = left+'px'; tipEl.style.top = top+'px';
   }
   function hideTip(){ tipKey = null; if(tipEl){ tipEl.remove(); tipEl = null; } }
+  function showTipNodes(e, nodes, cls){
+    hideTip(); tipKey = 'x';
+    tipEl = h('div',{class:'tip'+(cls?' '+cls:''), role:'tooltip'}, nodes); document.body.appendChild(tipEl); placeTip(e.clientX, e.clientY);
+  }
+  function achTip(el, a, p){
+    el.addEventListener('pointerenter', function(e){ if(e.pointerType && e.pointerType!=='mouse') return; showTipNodes(e, achTipBody(a, p), 'tip-ach'); });
+    el.addEventListener('pointermove', function(e){ if(tipEl) placeTip(e.clientX, e.clientY); });
+    el.addEventListener('pointerleave', hideTip);
+    return el;
+  }
+  function achTipBody(a, p){
+    var hp = hasProg(p), cnt = achCount(a,p), done = apiDone(p,a[0]), ep = earned(a,p), total = a[5] || a[6].length || 1;
+    var fl = D && D.DS && D.DS[a[0]];
+    return [ h('div',{class:'ta'},[
+      h('div',{class:'ta-side'},[ h('div',{class:'g-icon'},[ h('img',{src:achIconSrc(a)||'', alt:''}) ]), h('div',{class:'g-pts'},[ h('div',{},[ h('span',{class:'big',text: hp ? String(ep) : '–'}), h('span',{class:'of',text:' / '+a[4]}) ]), h('div',{class:'lbl',text:'Points'}) ]) ]),
+      h('div',{class:'ta-main'},[
+        h('div',{class:'ta-n',text:a[1]}),
+        h('div',{class:'g-obj'},[ 'Objectifs :', h('b',{text: hp ? cnt[0]+' / '+cnt[1] : '? / '+total}), done ? h('span',{class:'g-ok',text:'Terminé'}) : null ]),
+        a[2] ? h('div',{class:'ta-d',text:a[2]}) : null,
+        fl ? h('div',{class:'g-flavor',text:fl}) : null,
+        hasProg(p) ? null : h('div',{class:'tip-load',text:'Progression de '+nm(p)+' non synchronisée'})
+      ])
+    ]) ];
+  }
   function tipify(el, kind, id){
     if(!id) return el;
     el.addEventListener('pointerenter', function(e){
@@ -777,9 +810,9 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   }
   function stateBtn(p, val, cnt, onclick, multi){
     var ro = readOnly();
-    var label = val ? (val==='api' ? '✓ Fait (jeu)' : '✓ Fait') : (cnt ? cnt[0]+' / '+cnt[1] : 'À faire');
+    var label = val ? '✓ Terminé' : (cnt ? cnt[0]+' / '+cnt[1] : 'À faire');
     if(multi) label = nm(p).slice(0,1).toUpperCase()+' '+(val ? '✓' : (cnt ? cnt[0]+'/'+cnt[1] : '–'));
-    return h('button',{class:'state-pill p'+p+(val?' done':(cnt&&cnt[0]?'':' none')), disabled:ro||val==='api', title:(multi?nm(p)+' : ':'')+(val==='api'?'Validé par la progression du jeu':'Marquer comme fait'), text:label, onclick:onclick});
+    return h('button',{class:'state-pill p'+p+(val?(multi?' done':' fin'):(cnt&&cnt[0]?'':' none')), disabled:ro||val==='api', title:(multi?nm(p)+' : ':'')+(val==='api'?'Validé par la progression du jeu':'Marquer comme fait'), text:label, onclick:onclick});
   }
   function renderList(key){
     var ro = readOnly(), l = list(key), ps = listPlayers(key), shared = key==='carnet';
@@ -811,7 +844,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
         var anyDone = ps.every(function(p){ return achDone(p,xa); });
         return h('div',{class:'ach-row'+(anyDone?' is-done':'')},[
           iconEl(a),
-          h('button',{class:'r-open', onclick:function(){ openSheet(a[0], shared ? me : key); }},[ h('div',{class:'r-name',text:a[1]}), h('div',{class:'r-cat',text:catOf(a)[2]+' › '+catOf(a)[1]+' · '+a[4]+' pts'+(isMeta(a)?' · '+subsOf(a).length+' sous-succès':'')}) ]),
+          achTip(h('button',{class:'r-open', onclick:function(){ openSheet(a[0], shared ? me : key); }},[ h('div',{class:'r-name',text:a[1]}), h('div',{class:'r-cat',text:catOf(a)[2]+' › '+catOf(a)[1]+' · '+a[4]+' pts'+(isMeta(a)?' · '+subsOf(a).length+' sous-succès':'')}) ]), a, shared ? (me||'a') : key),
           h('div',{class:'pchecks'}, ps.map(function(p){ return stateBtn(p, achDone(p,xa), achCount(a,p), function(){ xa.m=xa.m||{}; xa.m[p]=!xa.m[p]; changed(); }, shared); })),
           ro ? null : h('button',{class:'ib danger','data-arm':ui.arm===o.id+'-a'+xi?'1':null,'aria-label':'Retirer ce succès', text:ui.arm===o.id+'-a'+xi?'Retirer ?':'✕', onclick:function(){ armDelete(o.id+'-a'+xi, function(){ o.achs.splice(xi,1); }); }})
         ]);
@@ -991,7 +1024,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       var sorted = subs.slice().sort(function(x,y){ return (apiDone(p,x[0])?1:0)-(apiDone(p,y[0])?1:0); });
       body.push(h('div',{class:'g-subs'}, sorted.map(function(s){
         var on = hp && apiDone(p,s[0]), sc = achCount(s,p);
-        return h('button',{class:'g-sub'+(on?' on':''), onclick:function(){ goSub(s[0]); }},[ iconEl(s), h('span',{text:s[1]}), hp ? h('div',{class:'bar'},[h('i',{style:'width:'+pct(sc)+'%;background:'+(on?'var(--gold)':PCOL[p])})]) : h('span',{class:'num',text:s[4]+' pts'}) ]);
+        return achTip(h('button',{class:'g-sub'+(on?' on':''), onclick:function(){ goSub(s[0]); }},[ iconEl(s), h('span',{text:s[1]}), on ? h('span',{class:'done-lbl',text:'✓ Terminé'}) : hp ? h('div',{class:'bar'},[h('i',{style:'width:'+pct(sc)+'%;background:'+PCOL[p]})]) : h('span',{class:'num',text:s[4]+' pts'}) ]), s, p);
       })));
     }
     if(txtBits.length) body.push(h('ul',{class:'g-bits'}, txtBits.map(function(x){
