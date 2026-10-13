@@ -879,7 +879,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   var goofyPreview = (function(){ try{ var v = localStorage.getItem('gw2-goofy-view'); return v==null ? null : +v; }catch(e){ return null; } })();
   function saveGoofyView(){ try{ if(goofyPreview==null) localStorage.removeItem('gw2-goofy-view'); else localStorage.setItem('gw2-goofy-view', String(goofyPreview)); }catch(e){} }
   function pickGoofy(n){ var real = realStage(totalGain()); n = Math.max(0, Math.min(real, n)); goofyPreview = n===real ? null : n; saveGoofyView(); updateGoofy(); }
-  var NOMS = ['Méli-Mélo','Goofy-Chang','Vaisselle','Lessive','Chaussette','GOEDULF','Labrador','Captain Moustache','Serpillière','Tupperware','Paillasson','Pantoufle','Coton-Tige','Béchamel','Parpaing','Glouglou-Chang','Jean-Moustache'];
+  var NOMS = ['Méli-Mélo','Goofy-Chang','Vaisselle','Lessive','Chaussette','GOEDULF','Labrador','Captain Moustache','Serpillière','Tupperware','Paillasson','Pantoufle','Coton-Tige','Béchamel','Parpaing','Glouglou-Chang','Jean-Moustache','Pitibout'];
   var goofyName = NOMS[Math.floor(Math.random()*NOMS.length)];
   function totalGain(){
     var total = 0;
