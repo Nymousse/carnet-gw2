@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Carnet GW2 Nymos &amp; Elodie</title>
+<title>Carnet de Tyrie</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&amp;display=swap">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
-/* Layout: bannière nuit de Tyrie + 4 onglets (carnet commun, Nymos, Elodie, catalogue). Bleu = Nymos, rose = Elodie. Fiche succès en panneau sombre façon jeu */
+/* Layout: bannière nuit de Tyrie + 4 onglets (carnet commun, Nymos, Elodie, catalogue). Bleu = Nymos, jaune doux = Jpawals. Fiche succès en panneau sombre façon jeu */
 /* Thème unique sombre, calqué sur gw2.app : fond ardoise, cartes gris-bleu, accents rose et violet */
 :root{
   --bg:#1c212b; --surface:#29303c; --sunk:#222833; --ink:#f2f2f2; --muted:#a3a3ad; --line:#414458;
   --night:#0e1116; --night-2:#3b2470; --gold:#f5c35b; --on-night:#f2f2f2;
-  --pa:#5ab4ff; --pa-soft:#1b3348; --pb:#ff7ac6; --pb-soft:#4a2140;
+  --pa:#5ab4ff; --pa-soft:#1b3348; --pb:#e3bd5c; --pb-soft:#3b3220;
   --accent:#b48af8; --accent-soft:#2f2747;
   --c0:#b48af8; --c0s:#2f2747; --c1:#b48af8; --c1s:#2f2747; --c2:#3fc8b4; --c2s:#10302b; --c3:#f27468; --c3s:#3a1a18; --c4:#7cc95a; --c4s:#1a2e14;
   --ok:#4ade80; --ok-soft:#173326; --danger:#f87171; --scrim:#05070cc0;
@@ -256,7 +256,8 @@ button.state-pill:not(:disabled):hover{background:var(--pcs)}
 .g-note{font-size:.88rem;color:var(--g-muted);background:#ffffff08;border:1px dashed var(--g-line);border-radius:8px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .g-btn{border:1px solid #ffffff30;background:#ffffff12;color:#fff;border-radius:8px;padding:6px 12px;font-weight:700;font-size:.85rem}
 .g-btn:hover{background:#ffffff22}
-.g-btn.primary{background:var(--pc);border-color:var(--pc)}
+.g-btn.primary{background:var(--pc);border-color:var(--pc);color:#14101f}
+.avatar.pb,.obj-check.pb[aria-pressed="true"]{color:#2a2410}
 .g-foot{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:12px 22px;border-top:1px solid var(--g-line);background:var(--night)}
 .g-links{display:flex;gap:14px;flex-wrap:wrap}
 .g-links a{color:#c9cfdd;font-size:.85rem;font-weight:600;text-decoration:none;border-bottom:1px solid #ffffff40}
@@ -357,7 +358,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   var me = null;
   try{ me = localStorage.getItem('gw2-me'); if(me!=='a' && me!=='b') me=null; }catch(e){}
   try{ var sv = JSON.parse(localStorage.getItem('gw2-ui')||'{}'); if(sv.cf) ui.cf = sv.cf; }catch(e){}
-  var hashTab = {succes:'succes', nymos:'a', elodie:'b', carnet:'carnet'}[location.hash.slice(1)];
+  var hashTab = {succes:'succes', nymos:'a', elodie:'b', jpawals:'b', carnet:'carnet'}[location.hash.slice(1)];
   ui.tab = hashTab || me || 'carnet';
   function saveUi(){ try{ localStorage.setItem('gw2-ui', JSON.stringify({cf:ui.cf})); }catch(e){} }
   function setMe(p){ me = p; try{ localStorage.setItem('gw2-me', p); }catch(e){} ui.tab = p; render(); }
@@ -471,7 +472,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
         lists[p].push({id:o.id||uid(), title:o.title, desc:o.desc||'', achs:(o.achs||[]).map(function(x){ var mm={}; mm[p]=!!x.done; return {id:x.id, m:mm}; }), tasks:[], done:m});
       });
     });
-    return {v:2, players:s.players||{a:'Nymos',b:'Elodie'}, lists:lists};
+    return {v:2, players:s.players||{a:'Nymos',b:'Jpawals'}, lists:lists};
   }
   function list(key){ state.lists[key] = state.lists[key] || []; return state.lists[key]; }
   function achDone(p,x){ if(apiDone(p,x.id)) return 'api'; return x.m && x.m[p] ? 'man' : false; }
