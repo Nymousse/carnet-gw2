@@ -45,6 +45,7 @@ body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;m
 .goofy:hover .goofy-ctl,.goofy-ctl:focus-within{opacity:1}
 .goofy-ctl button{border:1px solid var(--line);background:#1b2029e6;color:var(--ink);width:24px;height:24px;border-radius:50%;font-weight:800;line-height:1;padding:0}
 .goofy-ctl[hidden]{display:none}
+.private-ico{font-size:2.4rem;margin-bottom:4px}
 .goofy-ctl button:hover:not(:disabled){border-color:var(--muted)}
 .goofy-ctl button:disabled{opacity:.3;cursor:default}
 .goofy-lbl{font-size:.7rem;color:var(--muted);min-width:70px;text-align:center}
@@ -1388,6 +1389,31 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     return SB.from('carnet').select('id,data').then(function(r){
       if(r.error){ status='err'; errMsg=r.error.message; state = migrate({}); render(); return; }
       var rows = {}; (r.data||[]).forEach(function(x){ rows[x.id]=x.data; });
+      if(!rows.state){
+        // rien de visible : soit le carnet est tout neuf, soit cette adresse n'a pas accès. On essaie de le créer pour savoir.
+        var fresh = migrate({});
+        return SB.from('carnet').insert([{id:'state', data:fresh, updated_at:new Date().toISOString()}]).then(function(w){
+          if(w.error){ status = 'login'; renderPrivate(); return; }
+          rows.state = fresh; startDb(rows);
+        });
+      }
+      startDb(rows);
+    });
+  }
+  function renderPrivate(){
+    app.textContent = '';
+    var mail = session && session.user && session.user.email;
+    app.appendChild(h('header',{class:'banner'},[ h('div',{},[ h('div',{class:'eyebrow',text:'Guild Wars 2 · objectifs à deux'}), h('h1',{text:'Carnet de Tyrie'}) ]) ]));
+    app.appendChild(h('div',{class:'sheet private', style:'--pc:var(--accent);max-width:30rem;margin:0 auto;text-align:center'},[
+      h('div',{class:'private-ico','aria-hidden':'true',text:'🔒'}),
+      h('h2',{text:'Carnet privé'}),
+      h('p',{class:'hint',text:'Ce carnet est réservé à ses deux propriétaires.'+(mail ? ' Tu es connecté avec '+mail+', qui n’a pas accès.' : '')}),
+      h('p',{class:'hint',text:'Si tu t’es trompé d’adresse, déconnecte-toi et réessaie avec la bonne.'}),
+      h('div',{class:'actions',style:'justify-content:center'},[ h('button',{class:'btn', text:'Se déconnecter', onclick:function(){ SB.auth.signOut(); }}) ])
+    ]));
+  }
+  function startDb(rows){
+    (function(){ // eslint-disable-line
       state = migrate(rows.state || {});
       if(state.players && state.players.b==='Jpawals'){ state.players.b = 'Jeff'; queue('state', state); }
       ['a','b'].forEach(function(p){ var x = rows['progress-'+p]; if(x && x.d) prog[p]=x; var av = rows['avatar-'+p]; if(av && av.img) pics[p]=av.img; if(rows['seen-'+p]) seen[p]=rows['seen-'+p]; if(rows['base-'+p]) bases[p]=rows['base-'+p]; });
@@ -1410,7 +1436,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       touchSeen(); setInterval(function(){ if(document.visibilityState==='visible') touchSeen(); }, 3*60*1000);
       setInterval(function(){ if(!ui.sheet && !ui.importFor && !ui.editing && !ui.addAch && !ui.addTask && document.visibilityState==='visible') render(); }, 60*1000);
       syncGame(false);
-    });
+    })();
   }
   if(!window.supabase || !window.CARNET_CONFIG || /A_REMPLIR/.test(window.CARNET_CONFIG.url)){
     app.textContent=''; app.appendChild(h('div',{class:'sheet', style:'--pc:var(--danger)'},[ h('h2',{text:'Configuration manquante'}), h('p',{class:'hint',text:'Le fichier config.js doit contenir l’adresse et la clé publique du projet Supabase.'}) ]));
