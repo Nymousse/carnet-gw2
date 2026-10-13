@@ -32,6 +32,16 @@ body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;m
 .side{background:#1b2029e6;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
 @media (min-width:1360px){ .side{position:fixed;top:20px;left:calc(50% + 26rem + 16px);width:280px;max-height:calc(100vh - 40px);overflow-y:auto;z-index:4} }
 .side-h{display:flex;justify-content:space-between;align-items:center}
+.goofy{display:none;position:fixed;left:max(16px, calc(25vw - 13rem - var(--gw,120px)/2));bottom:18px;z-index:3;width:var(--gw,120px);transition:width .8s cubic-bezier(.2,1.4,.4,1);pointer-events:none}
+@media (min-width:1180px){ .goofy{display:block} }
+.goofy-img{width:100%;height:auto;display:block;transform-origin:50% 100%;animation:sway 4.5s ease-in-out infinite;filter:drop-shadow(0 10px 14px #0009)}
+.goofy.grow .goofy-img{animation:grow .9s cubic-bezier(.2,1.6,.4,1), sway 4.5s ease-in-out .9s infinite}
+@keyframes sway{0%,100%{transform:rotate(-2.2deg)}50%{transform:rotate(2.2deg)}}
+@keyframes grow{0%{transform:scale(.8)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+.goofy-say{position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);width:max-content;max-width:230px;background:#1b2029f2;border:1px solid var(--line);color:#f2f2f2;font-size:.82rem;font-weight:600;line-height:1.35;padding:8px 12px;border-radius:12px;box-shadow:0 8px 24px #0008;text-align:center;opacity:0;animation:say 12s ease-in-out infinite 2s}
+.goofy-say::after{content:"";position:absolute;left:50%;top:100%;margin-left:-7px;border:7px solid transparent;border-top-color:#1b2029f2}
+@keyframes say{0%,8%{opacity:0;transform:translate(-50%,6px)}14%,52%{opacity:1;transform:translate(-50%,0)}60%,100%{opacity:0;transform:translate(-50%,-4px)}}
+@media (prefers-reduced-motion:reduce){ .goofy-img,.goofy.grow .goofy-img{animation:none} .goofy-say{animation:none;opacity:1} }
 .side-hr{display:flex;align-items:center;gap:6px}
 .side-x{border:0;background:transparent;color:var(--muted);width:24px;height:24px;border-radius:6px;font-size:.85rem}
 .side-x:hover{background:var(--surface);color:var(--ink)}
@@ -838,6 +848,32 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     }
     return h('aside',{class:'side', 'aria-label':'Personnages'},[ h('div',{class:'side-h'},[ h('span',{class:'eyebrow',text:'Personnages'}), h('span',{class:'side-hr'},[ Array.isArray(data) ? h('span',{class:'count',text:String(data.length)}) : null, h('button',{class:'side-x', title:'Fermer la liste', 'aria-label':'Fermer la liste des personnages', onclick:function(){ setCharsClosed(true); }},[ '✕' ]) ]) ]), tabs, body ]);
   }
+  /* ---------- Goofy-Chang, la mascotte qui grossit avec les points gagnés ---------- */
+  var GOOFY = [250, 1000, 2000, 4000, 8000, 12000, 15000], goofyEl = null, goofyStage = -1;
+  function totalGain(){
+    var total = 0, any = false;
+    ['a','b'].forEach(function(p){ var b = bases[p], ap = apOf(p); if(b && ap!=null){ total += Math.max(0, ap - b.ap); any = true; } });
+    return any ? total : 0;
+  }
+  function updateGoofy(){
+    var pts = totalGain(), stage = 0;
+    for(var i=0;i<6;i++) if(pts >= GOOFY[i]) stage = i+1;
+    var next = GOOFY.filter(function(t){ return t > pts; })[0];
+    if(!goofyEl){
+      goofyEl = h('div',{class:'goofy', 'aria-hidden':'true'},[ h('div',{class:'goofy-say'}), h('img',{class:'goofy-img', alt:''}) ]);
+      document.body.appendChild(goofyEl);
+    }
+    var img = goofyEl.querySelector('.goofy-img');
+    if(stage !== goofyStage){
+      img.src = 'img/goofy-'+stage+'.webp';
+      goofyEl.style.setProperty('--gw', (120 + stage*20)+'px');
+      if(goofyStage >= 0){ goofyEl.classList.remove('grow'); void goofyEl.offsetWidth; goofyEl.classList.add('grow'); }
+      goofyStage = stage;
+    }
+    goofyEl.querySelector('.goofy-say').textContent = next
+      ? 'Je suis Goofy-Chang, nourrissez-moi avec '+(next - pts).toLocaleString('fr-FR')+' points de succès !'
+      : 'Je suis Goofy-Chang… et je suis enfin rassasié !';
+  }
   function gainsCard(){
     var rows = [], total = 0, any = false, since = null;
     P().forEach(function(p){
@@ -909,6 +945,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       h('span',{style:'display:flex;gap:14px'},[ h('a',{href:'https://gw2.app/fr/', target:'_blank', rel:'noopener', text:'gw2.app ↗'}), session ? h('button',{class:'ib', text:'Se déconnecter', onclick:function(){ SB.auth.signOut(); }}) : null ])
     ]));
     renderSheet();
+    updateGoofy();
   }
 
   function searchBox(id, value, placeholder, onInput){
