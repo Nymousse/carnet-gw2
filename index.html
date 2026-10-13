@@ -44,7 +44,9 @@ body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;m
 .goofy-ctl{pointer-events:auto;display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px;opacity:.35;transition:opacity .2s}
 .goofy:hover .goofy-ctl,.goofy-ctl:focus-within{opacity:1}
 .goofy-ctl button{border:1px solid var(--line);background:#1b2029e6;color:var(--ink);width:24px;height:24px;border-radius:50%;font-weight:800;line-height:1;padding:0}
-.goofy-ctl button:hover{border-color:var(--muted)}
+.goofy-ctl[hidden]{display:none}
+.goofy-ctl button:hover:not(:disabled){border-color:var(--muted)}
+.goofy-ctl button:disabled{opacity:.3;cursor:default}
 .goofy-lbl{font-size:.7rem;color:var(--muted);min-width:70px;text-align:center}
 @media (prefers-reduced-motion:reduce){ .goofy-img,.goofy.grow .goofy-img{animation:none} .goofy-say{transition:none} }
 .side-hr{display:flex;align-items:center;gap:6px}
@@ -854,7 +856,10 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     return h('aside',{class:'side', 'aria-label':'Personnages'},[ h('div',{class:'side-h'},[ h('span',{class:'eyebrow',text:'Personnages'}), h('span',{class:'side-hr'},[ Array.isArray(data) ? h('span',{class:'count',text:String(data.length)}) : null, h('button',{class:'side-x', title:'Fermer la liste', 'aria-label':'Fermer la liste des personnages', onclick:function(){ setCharsClosed(true); }},[ '✕' ]) ]) ]), tabs, body ]);
   }
   /* ---------- la mascotte qui grossit avec les points gagnés à deux ---------- */
-  var GOOFY = [250, 1000, 2000, 4000, 8000, 12000], goofyEl = null, goofyStage = -1, goofyPreview = null, sayTimer = null;
+  var GOOFY = [500, 2000, 5000, 9000, 14000, 20000], goofyEl = null, goofyStage = -1, sayTimer = null;
+  var goofyPreview = (function(){ try{ var v = localStorage.getItem('gw2-goofy-view'); return v==null ? null : +v; }catch(e){ return null; } })();
+  function saveGoofyView(){ try{ if(goofyPreview==null) localStorage.removeItem('gw2-goofy-view'); else localStorage.setItem('gw2-goofy-view', String(goofyPreview)); }catch(e){} }
+  function pickGoofy(n){ var real = realStage(totalGain()); n = Math.max(0, Math.min(real, n)); goofyPreview = n===real ? null : n; saveGoofyView(); updateGoofy(); }
   var NOMS = ['Méli-Mélo','Goofy-Chang','Vaisselle','Lessive','Chaussette','GOEDULF','Labrador','Captain Moustache','Serpillière','Tupperware','Paillasson','Micro-Ondine','Pantoufle','Coton-Tige','Béchamel','Croquette','Parpaing','Glouglou-Chang','Jean-Moustache'];
   var goofyName = NOMS[Math.floor(Math.random()*NOMS.length)];
   function totalGain(){
@@ -864,9 +869,9 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   }
   function realStage(pts){ var st = 0; for(var i=0;i<GOOFY.length;i++) if(pts >= GOOFY[i]) st = i+1; return st; }
   function goofyText(){
-    var pts = totalGain(), stage = goofyPreview!=null ? goofyPreview : realStage(pts);
-    if(stage >= GOOFY.length) return 'Moi, '+goofyName+', j’ai le ventre bien rempli… Merci pour ces '+Math.max(totalGain(),12000).toLocaleString('fr-FR')+' points de succès, je vais faire une sieste ! Zzz…';
-    var need = goofyPreview!=null ? GOOFY[stage] - (stage ? GOOFY[stage-1] : 0) : GOOFY[stage] - pts;
+    var pts = totalGain(), stage = realStage(pts);
+    if(stage >= GOOFY.length) return 'Moi, '+goofyName+', j’ai le ventre bien rempli… Merci pour ces '+Math.max(totalGain(),GOOFY[GOOFY.length-1]).toLocaleString('fr-FR')+' points de succès, je vais faire une sieste ! Zzz…';
+    var need = GOOFY[stage] - pts;
     return 'Moi, '+goofyName+', j’ai faim !!!!! Nourrissez-moi avec '+need.toLocaleString('fr-FR')+' points de succès !';
   }
   function goofySay(){
@@ -892,18 +897,22 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
         h('div',{class:'goofy-say', role:'status'}),
         h('img',{class:'goofy-img', alt:''}),
         h('div',{class:'goofy-ctl'},[
-          h('button',{title:'Palier précédent (aperçu)', 'aria-label':'Palier précédent', onclick:function(){ goofyPreview = Math.max(0, (goofyPreview!=null?goofyPreview:goofyStage) - 1); updateGoofy(); goofySay(); }},[ '−' ]),
+          h('button',{class:'goofy-prev', title:'Revoir un palier déjà passé', 'aria-label':'Palier précédent', onclick:function(){ pickGoofy(goofyStage - 1); }},[ '−' ]),
           lbl,
-          h('button',{title:'Palier suivant (aperçu)', 'aria-label':'Palier suivant', onclick:function(){ goofyPreview = Math.min(6, (goofyPreview!=null?goofyPreview:goofyStage) + 1); updateGoofy(); goofySay(); }},[ '+' ]),
-          h('button',{class:'goofy-reset', title:'Revenir aux vrais points', onclick:function(){ goofyPreview = null; updateGoofy(); goofySay(); }},[ '↺' ])
+          h('button',{class:'goofy-next', title:'Palier suivant (déjà atteint)', 'aria-label':'Palier suivant', onclick:function(){ pickGoofy(goofyStage + 1); }},[ '+' ]),
+          h('button',{class:'goofy-reset', title:'Revenir aux vrais points', onclick:function(){ pickGoofy(99); }},[ '↺' ])
         ])
       ]);
       document.body.appendChild(goofyEl);
       setTimeout(goofySay, 3000);
     }
-    var stage = goofyPreview!=null ? goofyPreview : realStage(totalGain());
+    var real = realStage(totalGain());
+    var stage = goofyPreview!=null && goofyPreview < real ? goofyPreview : real;
+    goofyEl.querySelector('.goofy-ctl').hidden = real < 1;
+    goofyEl.querySelector('.goofy-prev').disabled = stage <= 0;
+    goofyEl.querySelector('.goofy-next').disabled = stage >= real;
     setGoofyStage(stage);
-    goofyEl.querySelector('.goofy-lbl').textContent = (goofyPreview!=null ? 'Aperçu ' : 'Palier ')+(stage+1)+'/7';
+    goofyEl.querySelector('.goofy-lbl').textContent = 'Palier '+(stage+1)+'/'+(real+1);
     goofyEl.querySelector('.goofy-reset').hidden = goofyPreview==null;
     var b = goofyEl.querySelector('.goofy-say'); if(b.classList.contains('on')) b.textContent = goofyText();
   }
