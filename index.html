@@ -317,6 +317,21 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 .add-row .add-toggle{border-top:0;flex:1}
 .add-row .add-toggle+.add-toggle{border-left:1px dashed var(--line)}
 
+/* infobulle objet */
+.tip{position:fixed;z-index:50;pointer-events:none;width:300px;max-width:calc(100vw - 24px);background:#1b2029f2;border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:0 14px 40px #000b;font-size:.85rem;line-height:1.45;color:#e9ecf3;backdrop-filter:blur(4px)}
+.tip-h{display:flex;gap:12px;align-items:center;margin-bottom:10px}
+.tip-h img{width:52px;height:52px;border-radius:6px;border:2px solid var(--rc,#555)}
+.tip-n{font-weight:700;font-size:1.05rem;color:var(--rc,#fff);line-height:1.25}
+.tip-at{color:#e9ecf3}.tip-at b{color:#4ade80;font-weight:600}
+.tip-sl{display:flex;align-items:center;gap:6px;margin-top:8px;color:#d6d9e2}
+.tip-sl i{width:12px;height:12px;border-radius:50%;border:2px solid #9aa4ba;display:inline-block}
+.tip-d{color:#c9cfdd;margin-top:8px;font-style:italic}
+.tip-m{margin-top:8px;color:#d6d9e2}
+.tip-r{color:var(--rc,#fff)}
+.tip-c{margin-top:8px;display:flex;gap:8px;font-weight:700}
+.tip-c .g{color:#f5c35b}.tip-c .s{color:#c0c4cc}.tip-c .c{color:#c87b45}
+.tip-load{color:var(--muted)}
+
 /* fiche : sous-succès, collections */
 .g-back{border:0;background:transparent;color:var(--g-muted);font-weight:700;font-size:.85rem;padding:0;text-align:left;align-self:flex-start}
 .g-back:hover{color:#fff}
@@ -581,6 +596,63 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   function openSheet(id, p){ ui.hist = []; ui.item = null; ui.sheet = {id:id, p:p || (ui.sheet&&ui.sheet.p) || me || (ui.tab==='a'||ui.tab==='b'?ui.tab:'a')}; renderSheet(); }
   function goSub(id){ ui.hist.push(ui.sheet.id); ui.item=null; ui.sheet = {id:id, p:ui.sheet.p}; renderSheet(); var s=layer.querySelector('.scrim'); if(s) s.scrollTop=0; }
 
+  /* ---------- infobulle des objets (API du jeu, chargée au survol) ---------- */
+  var tipCache = {}, tipEl = null, tipKey = null;
+  var ATTR = {Power:'Puissance',Precision:'Précision',Toughness:'Robustesse',Vitality:'Vitalité',ConditionDamage:'Dégâts par altération',CritDamage:'Férocité',Healing:'Guérison',BoonDuration:'Concentration',ConditionDuration:'Expertise',AgonyResistance:'Résistance à l’agonie'};
+  var SUBT = {Accessory:'Accessoire',Amulet:'Amulette',Ring:'Anneau',Helm:'Casque',Shoulders:'Épaulières',Coat:'Plastron',Gloves:'Gants',Leggings:'Jambières',Boots:'Bottes',HelmAquatic:'Masque aquatique',Back:'Dos'};
+  var FLAGS = {AccountBound:'Lié au compte',SoulbindOnAcquire:'Lié à l’âme à l’acquisition',AccountBindOnUse:'Lié au compte à l’utilisation',SoulBindOnUse:'Lié à l’âme à l’utilisation',Unique:'Unique'};
+  function apiGet(path){ return fetch('https://api.guildwars2.com/v2/'+path+(path.indexOf('?')<0?'?':'&')+'lang=fr').then(function(r){ if(!r.ok) throw 0; return r.json(); }); }
+  function itemTip(it){
+    var d = it.details || {}, inf = d.infix_upgrade;
+    return {name:it.name, icon:it.icon, rarity:it.rarity, type:it.type, sub:d.type, level:it.level, value:it.vendor_value, flags:it.flags||[],
+      attrs:(inf && inf.attributes || []).map(function(a){ return [a.modifier, ATTR[a.attribute]||a.attribute]; }),
+      infus:(d.infusion_slots||[]).length, desc:(it.description||'').replace(/<[^>]+>/g,'')};
+  }
+  function loadTip(kind, id){
+    var key = kind+id; if(tipCache[key]) return tipCache[key];
+    var pr;
+    if(kind==='S') pr = apiGet('skins/'+id).then(function(sk){ return {name:sk.name, icon:sk.icon, rarity:sk.rarity, type:sk.type, sub:sk.details&&sk.details.type, desc:(sk.description||'').replace(/<[^>]+>/g,'')}; });
+    else if(kind==='M') pr = apiGet('minis/'+id).then(function(m){ return m.item_id ? apiGet('items/'+m.item_id).then(itemTip) : {name:m.name, icon:m.icon}; });
+    else pr = apiGet('items/'+id).then(itemTip);
+    tipCache[key] = pr.catch(function(){ delete tipCache[key]; return null; });
+    return tipCache[key];
+  }
+  function coins(v){ var g=Math.floor(v/10000), sv=Math.floor(v/100)%100, c=v%100, out=[];
+    if(g) out.push(h('span',{class:'g',text:g+' po'})); if(sv) out.push(h('span',{class:'s',text:sv+' pa'})); if(c||!out.length) out.push(h('span',{class:'c',text:c+' pc'})); return out; }
+  function tipBody(t, fallback){
+    if(!t) return [ h('div',{class:'tip-load',text:fallback||'Détails indisponibles'}) ];
+    var rc = RARITY[t.rarity]||'#e9ecf3';
+    var typ = [TYPE_FR[t.type]||t.type, t.sub ? '('+(SUBT[t.sub]||t.sub)+')' : ''].filter(Boolean).join(' ');
+    var out = [ h('div',{class:'tip-h', style:'--rc:'+rc},[ t.icon ? h('img',{src:t.icon, alt:''}) : null, h('div',{class:'tip-n',text:t.name}) ]) ];
+    (t.attrs||[]).forEach(function(a){ out.push(h('div',{class:'tip-at'},[ h('b',{text:'+'+a[0]+' '}), a[1] ])); });
+    for(var i=0;i<(t.infus||0);i++) out.push(h('div',{class:'tip-sl'},[ h('i'), 'Emplacement d’infusion vide' ]));
+    if(t.desc) out.push(h('div',{class:'tip-d',text:t.desc}));
+    out.push(h('div',{class:'tip-m'},[ t.rarity ? h('div',{class:'tip-r', style:'--rc:'+rc, text:RARITY_FR[t.rarity]||t.rarity}) : null, typ ? h('div',{text:typ}) : null, t.level ? h('div',{text:'Niveau requis : '+t.level}) : null ].concat((t.flags||[]).filter(function(f){ return FLAGS[f]; }).map(function(f){ return h('div',{text:FLAGS[f]}); }))));
+    if(t.value) out.push(h('div',{class:'tip-c'}, coins(t.value)));
+    return out;
+  }
+  function placeTip(x, y){
+    if(!tipEl) return; var w = tipEl.offsetWidth, hh = tipEl.offsetHeight;
+    var left = x + 18; if(left + w > window.innerWidth - 12) left = x - w - 18; if(left < 12) left = 12;
+    var top = y + 14; if(top + hh > window.innerHeight - 12) top = Math.max(12, window.innerHeight - hh - 12);
+    tipEl.style.left = left+'px'; tipEl.style.top = top+'px';
+  }
+  function hideTip(){ tipKey = null; if(tipEl){ tipEl.remove(); tipEl = null; } }
+  function tipify(el, kind, id){
+    if(!id) return el;
+    el.addEventListener('pointerenter', function(e){
+      if(e.pointerType && e.pointerType!=='mouse') return;
+      hideTip(); var key = kind+id; tipKey = key;
+      var x = e.clientX, y = e.clientY;
+      tipEl = h('div',{class:'tip', role:'tooltip'}, tipBody(null, 'Chargement…')); document.body.appendChild(tipEl); placeTip(x, y);
+      loadTip(kind, id).then(function(t){ if(tipKey!==key || !tipEl) return; tipEl.textContent=''; tipBody(t).forEach(function(n){ if(n) tipEl.appendChild(n); }); placeTip(x, y); });
+    });
+    el.addEventListener('pointermove', function(e){ if(tipEl) placeTip(e.clientX, e.clientY); });
+    el.addEventListener('pointerleave', hideTip);
+    return el;
+  }
+  document.addEventListener('scroll', hideTip, true);
+
   /* ---------- glisser-déposer des objectifs (aperçu en direct) ---------- */
   function startDrag(e, l, from){
     if(e.button!=null && e.button!==0) return;
@@ -723,7 +795,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     if(ui.editing==='new-'+key) app.appendChild(h('div',{class:'obj'+(shared?' shared':' p'+key)},[ objForm(key, {}, function(t,d){ l.unshift({id:uid(), title:t, desc:d, achs:[], tasks:[], done:{}}); ui.editing=null; changed(); }, function(){ ui.editing=null; render(); }) ]));
     else if(!ro) app.appendChild(h('button',{class:'new-stage', style:'color:'+col+';border-color:'+col, text: shared ? '+ Nouvel objectif commun' : '+ Nouvel objectif pour '+nm(key), onclick:function(){ ui.editing='new-'+key; render(); }}));
 
-    if(!l.length && ui.editing!=='new-'+key) app.appendChild(h('div',{class:'cat-list'},[ h('div',{class:'empty',text:'Créez un objectif, donnez-lui une description, puis ajoutez les succès du jeu qui le composent (ou des tâches libres). La progression se met à jour à chaque import.'}) ]));
+    if(!l.length && ui.editing!=='new-'+key) app.appendChild(h('div',{class:'cat-list'},[ h('div',{class:'empty',text:'Créez un objectif, donnez-lui une description, puis ajoutez les succès du jeu qui le composent (ou des tâches libres). La progression du jeu se met à jour automatiquement.'}) ]));
 
     l.forEach(function(o, oi){
       o.achs = o.achs||[]; o.tasks = o.tasks||[]; o.done = o.done||{};
@@ -774,7 +846,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       app.appendChild(h('section',{class:'obj'+(shared?' shared':' p'+key)+(allDone?' done':''), 'data-oi':String(oi)},[
         h('div',{class:'obj-head'},[
           ro ? null : h('span',{class:'grip', title:'Glisser pour déplacer', 'aria-hidden':'true', onpointerdown:function(e){ startDrag(e, l, oi); }},[ '⠿' ]),
-          checks,
+          shared ? null : checks,
           h('div',{class:'obj-main'},[ h('div',{class:'obj-title',text:o.title}), o.desc ? h('div',{class:'desc',text:o.desc}) : null, progs ]),
           ro ? null : h('div',{class:'icons'},[
             h('button',{class:'ib', title:'Monter', 'aria-label':'Monter', disabled:oi===0, text:'↑', onclick:function(){ l.splice(oi-1,0,l.splice(oi,1)[0]); changed(); }}),
@@ -854,7 +926,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       if(k==='i'){
         var parts = v.split('x'), id = parts[0], cnt = parts[1], info = (D && D.IN[id]) || ['Objet', 'Basic'];
         var src = D && D.K['i'+id]!=null ? D.L[D.K['i'+id]] : null;
-        return h('a',{class:'rw', href:'https://gw2.app/fr/items/'+id, target:'_blank', rel:'noopener', style:'text-decoration:none'},[ h('span',{class:'rw-ic', style:'--rc:'+(RARITY[info[1]]||'#5a6377')},[ src ? h('img',{src:src, alt:''}) : '🎁' ]), h('span',{},[ h('small',{text:'Objet'}), (cnt?cnt+' × ':'')+info[0] ]) ]);
+        return tipify(h('a',{class:'rw', href:'https://gw2.app/fr/items/'+id, target:'_blank', rel:'noopener', style:'text-decoration:none'},[ h('span',{class:'rw-ic', style:'--rc:'+(RARITY[info[1]]||'#5a6377')},[ src ? h('img',{src:src, alt:''}) : '🎁' ]), h('span',{},[ h('small',{text:'Objet'}), (cnt?cnt+' × ':'')+info[0] ]) ]), 'I', id);
       }
       if(k==='t') return h('div',{class:'rw'},[ h('span',{class:'rw-ic', style:'--rc:#e7b34a'},['📜']), h('span',{},[ h('small',{text:'Titre'}), (D && D.TN[v]) || 'Titre' ]) ]);
       if(k==='m'){ var rg = REGION[v] || [v,'#888']; return h('div',{class:'rw'},[ h('span',{class:'rw-ic', style:'--rc:'+rg[1]+';color:'+rg[1]},['◆']), h('span',{},[ h('small',{text:'Point de maîtrise'}), rg[0] ]) ]); }
@@ -877,6 +949,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     else addAchTo(k, oid, ids);
   }
   function renderSheet(){
+    hideTip();
     var scrollY = 0, old = layer.querySelector('.scrim'); if(old) scrollY = old.scrollTop;
     layer.textContent='';
     if(ui.importFor){ layer.appendChild(importSheet(ui.importFor)); return; }
@@ -929,8 +1002,8 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       var grid = h('div',{class:'g-grid'}, a[6].map(function(b,i){
         var k = colKey(b); if(!k) return null;
         var bi = bitInfo(b), on = hp && apiBit(p,a[0],i), inf = CI && CI[k], src = icons[k];
-        return h('button',{class:'tile'+(hp ? (on?' on lit':'') : ' lit'), style:'--rc:'+(inf&&RARITY[inf[0]]||'#3a4256'), title:bi.text, 'aria-label':bi.text+(hp?(on?' (obtenu)':' (manquant)'):''), 'aria-pressed':String(ui.item===i), onclick:function(){ ui.item = ui.item===i ? null : i; renderSheet(); }},
-          [ src ? h('img',{src:src, alt:''}) : h('span',{class:'ph',text:'…'}) ]);
+        return tipify(h('button',{class:'tile'+(hp ? (on?' on lit':'') : ' lit'), style:'--rc:'+(inf&&RARITY[inf[0]]||'#3a4256'), 'aria-label':bi.text+(hp?(on?' (obtenu)':' (manquant)'):''), 'aria-pressed':String(ui.item===i), onclick:function(){ ui.item = ui.item===i ? null : i; renderSheet(); }},
+          [ src ? h('img',{src:src, alt:''}) : h('span',{class:'ph',text:'…'}) ]), bi.kind, bi.id);
       }));
       body.push(grid);
       if(ui.item!=null && a[6][ui.item]){
