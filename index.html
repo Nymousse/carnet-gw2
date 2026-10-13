@@ -56,7 +56,30 @@ mark{background:var(--gold);color:#1a1f2e;border-radius:2px;padding:0 1px}
 .status{font-size:.78rem;display:flex;align-items:center;gap:6px;background:#ffffff14;border:1px solid #ffffff22;border-radius:999px;padding:3px 10px;color:#e3def5;max-width:100%}
 .dot{width:8px;height:8px;border-radius:50%;background:#9a93c0;flex-shrink:0}
 .status[data-s="ok"] .dot{background:#5cd18e} .status[data-s="saving"] .dot{background:var(--gold)} .status[data-s="view"] .dot,.status[data-s="ro"] .dot,.status[data-s="err"] .dot{background:#ff8a7a}
-.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:10px}
+.summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:640px){.summary{grid-template-columns:1fr}}
+.pres{white-space:nowrap;display:inline-flex;align-self:flex-start;align-items:center;gap:5px;margin:2px 0;font-size:.7rem;font-weight:700;color:#9aa4ba;vertical-align:middle;background:#ffffff0d;border-radius:999px;padding:1px 8px}
+.pres i{width:7px;height:7px;border-radius:50%;background:#6b7280}
+.pres.on{color:#86efac;background:#16a34a22}
+.pres.on i{background:#22c55e;box-shadow:0 0 0 3px #22c55e33;animation:pulse 2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px #22c55e00}}
+@media (prefers-reduced-motion:reduce){.pres.on i{animation:none}}
+.pl.gains{--pc:var(--gold);background:linear-gradient(135deg,#f5c35b1c,#ffffff06 60%);grid-column:1/-1;display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:8px 24px}
+.gains .gains-rows{flex-direction:row;flex-wrap:wrap;gap:8px 20px;justify-content:flex-end}
+@media (max-width:640px){.pl.gains{grid-template-columns:1fr}.gains .gains-rows{justify-content:flex-start}}
+.gains-h{display:flex;flex-direction:column;gap:2px}
+.gains-h .eyebrow{color:#f5d27a}
+.gains-tot{display:flex;align-items:center;gap:8px}
+.gains-tot img{width:30px;height:30px}
+.gains-tot b{font-size:1.7rem;color:#f5d27a;font-variant-numeric:tabular-nums;line-height:1}
+.gains-tot span{font-size:.8rem;color:#cfc9ea}
+.gains-rows{display:flex;flex-direction:column;gap:6px}
+.gain-row{display:flex;align-items:center;gap:8px;font-size:.85rem}
+.gain-row .avatar{width:22px;height:22px;font-size:.65rem}
+.gain-row .g-nm{flex:1;color:#e9ecf3;font-weight:600}
+.g-val{display:inline-flex;align-items:center;gap:4px;font-weight:800;color:#f5d27a;font-variant-numeric:tabular-nums}
+.g-val img{width:16px;height:16px}
+.g-val small{color:#b9b9c6;font-weight:600}
 .pl{background:linear-gradient(135deg,color-mix(in srgb,var(--pc) 16%,transparent),#ffffff06 60%);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
 .pl-id{display:flex;align-items:center;gap:12px;min-width:0}
 .pl-pic{position:relative;border:0;padding:0;background:transparent;border-radius:50%;flex-shrink:0}
@@ -404,7 +427,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   var hashTab = {succes:'succes', nymos:'a', elodie:'b', jpawals:'b', carnet:'carnet'}[location.hash.slice(1)];
   ui.tab = hashTab || me || 'carnet';
   function saveUi(){ try{ localStorage.setItem('gw2-ui', JSON.stringify({cf:ui.cf})); }catch(e){} }
-  function setMe(p){ me = p; try{ localStorage.setItem('gw2-me', p); }catch(e){} ui.tab = p; render(); }
+  function setMe(p){ me = p; try{ localStorage.setItem('gw2-me', p); }catch(e){} ui.tab = p; trackPresence(); touchSeen(); render(); }
 
   var status = 'wait';
   var PCOL = {a:'var(--pa)', b:'var(--pb)'};
@@ -463,6 +486,16 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     inp.click();
   }
   function alertMsg(t){ syncErr = t; render(); }
+  /* présence et points gagnés depuis la création */
+  var online = {}, seen = {}, bases = {}, presCh = null;
+  function ago(iso){ var m = Math.round((Date.now()-new Date(iso).getTime())/60000); if(m<1) return 'à l’instant'; if(m<60) return 'il y a '+m+' min'; var hh = Math.round(m/60); if(hh<24) return 'il y a '+hh+' h'; var d = Math.round(hh/24); return 'il y a '+d+' j'; }
+  function touchSeen(){ if(!SB || !me || status==='login') return; var at = new Date().toISOString(); seen[me] = {at:at}; try{ SB.from('carnet').upsert([{id:'seen-'+me, data:{at:at}, updated_at:at}]).then(function(){}, function(){}); }catch(e){} }
+  function trackPresence(){ if(presCh && me) presCh.track({p:me, at:new Date().toISOString()}); }
+  function ensureBase(p){
+    if(p!==me || bases[p] || !hasProg(p) || !catalog || !D) return;
+    var ap = apOf(p); if(ap==null) return;
+    bases[p] = {ap:ap, n:prog[p].n, at:new Date().toISOString()}; queue('base-'+p, bases[p]);
+  }
   /* points de succès : somme des paliers atteints + points quotidiens/mensuels historiques */
   function apOf(p){
     if(!hasProg(p) || !catalog) return null;
@@ -734,6 +767,23 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up); window.addEventListener('scroll', onScroll);
   }
 
+  function gainsCard(){
+    var rows = [], total = 0, any = false, since = null;
+    P().forEach(function(p){
+      var b = bases[p], ap = apOf(p);
+      if(b && b.at && (!since || b.at < since)) since = b.at;
+      var gain = (b && ap!=null) ? Math.max(0, ap - b.ap) : null, dn = (b && hasProg(p)) ? Math.max(0, prog[p].n - (b.n||0)) : null;
+      if(gain!=null){ total += gain; any = true; }
+      rows.push(h('div',{class:'gain-row p'+p},[ avatar(p), h('span',{class:'g-nm',text:nm(p)}),
+        gain==null ? h('span',{class:'num',text:'en attente de synchro'}) : h('span',{class:'g-val'},[ '+'+gain.toLocaleString('fr-FR'), h('img',{src:'https://wiki.guildwars2.com/images/c/cd/AP.png', alt:'points'}), dn ? h('small',{text:' · '+dn+' succès'}) : null ]) ]));
+    });
+    return h('div',{class:'pl gains'},[
+      h('div',{class:'gains-h'},[ h('span',{class:'eyebrow',text:'Depuis la création du carnet'}), since ? h('span',{class:'num',text:'le '+new Date(since).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}) : null ]),
+      h('div',{class:'gains-tot'},[ h('img',{src:'https://wiki.guildwars2.com/images/c/cd/AP.png', alt:''}), h('b',{text: any ? '+'+total.toLocaleString('fr-FR') : '—'}), h('span',{text:'points gagnés à deux'}) ]),
+      h('div',{class:'gains-rows'}, rows)
+    ]);
+  }
+
   /* ---------- rendu ---------- */
   function render(){
     if(!state || status==='login') return;
@@ -742,7 +792,9 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     var players = P().map(function(p){
       var x = listTally(p,p), ap = apOf(p), acc = prog[p] && prog[p].acc;
       var pic = h('button',{class:'pl-pic', title: ro ? null : 'Changer la photo', disabled:ro, 'aria-label':'Changer la photo de '+nm(p), onclick:function(){ pickPhoto(p); }},[ avatar(p), ro ? null : h('span',{class:'edit','aria-hidden':'true',text:'✎'}) ]);
-      var idRow = h('div',{class:'pl-id'},[ pic, h('div',{class:'pl-txt'},[ h('span',{class:'pl-nm',text:nm(p)}), h('span',{class:'acc',text: acc && acc.name ? acc.name : (p===me?'Compte GW2 non relié':'—')}) ]),
+      var on = !!online[p];
+      var pres = h('span',{class:'pres'+(on?' on':'')},[ h('i'), on ? 'En ligne' : (seen[p] && seen[p].at ? 'Vu '+ago(seen[p].at) : 'Hors ligne') ]);
+      var idRow = h('div',{class:'pl-id'},[ pic, h('div',{class:'pl-txt'},[ h('span',{class:'pl-nm'},[ nm(p) ]), pres, h('span',{class:'acc',text: acc && acc.name ? acc.name : (p===me?'Compte GW2 non relié':'—')}) ]),
         ap!=null ? h('span',{class:'ap', title:'Points de succès'},[ h('img',{src:'https://wiki.guildwars2.com/images/c/cd/AP.png', alt:''}), ap.toLocaleString('fr-FR') ]) : null ]);
       var sync = hasProg(p) ? h('span',{text:'Jeu synchronisé le '+fmtDate(prog[p].at)+' · '+prog[p].n+' succès finis'}) : h('span',{text: p===me ? 'Ajoutez votre clé API pour suivre le jeu' : 'Se synchronise quand '+nm(p)+' ouvre le carnet'});
       if(p===me && syncErr) sync = h('span',{style:'color:#ffb4b4',text:syncErr});
@@ -760,7 +812,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
         h('div',{},[ h('div',{class:'eyebrow',text:'Guild Wars 2 · objectifs à deux'}), h('h1',{text:'Carnet de Tyrie'}) ]),
         h('div',{class:'status', id:'status', 'data-s':status, role:'status'},[ h('span',{class:'dot'}), h('span',{text:statusText[status]}) ])
       ]),
-      h('section',{class:'summary','aria-label':'Progression'},players),
+      h('section',{class:'summary','aria-label':'Progression'},players.concat([ gainsCard() ])),
       me ? meRow : null
     ]));
     if(!me) app.appendChild(h('div',{class:'me-ask'},[ 'Qui es-tu ? La page s’ouvrira ensuite directement sur ton onglet, sur ce navigateur.' ].concat(['a','b'].map(function(p){
@@ -1097,7 +1149,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
         var acc = a && a.name ? {name:a.name, dap:a.daily_ap||0, map:a.monthly_ap||0} : oldAcc;
         var same = old && JSON.stringify(old)===JSON.stringify(c.d) && JSON.stringify(oldAcc||null)===JSON.stringify(acc||null);
         var stale = !prog[me] || (Date.now() - new Date(prog[me].at).getTime() > 3600e3);
-        prog[me] = {at:new Date().toISOString(), n:c.n, d:c.d, acc:acc};
+        prog[me] = {at:new Date().toISOString(), n:c.n, d:c.d, acc:acc}; ensureBase(me);
         if(!same || stale || force) queue('progress-'+me, prog[me]);
         render();
       });
@@ -1157,22 +1209,32 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   function getJSON(path){ return fetch(path).then(function(r){ if(!r.ok) throw new Error(path); return r.json(); }); }
   function loadStatic(){
     getJSON('data/catalog.json').then(function(c){ catalog = prepCatalog(c); render(); return getJSON('data/details.json'); })
-    .then(function(d){ D = d; (d.CD||[]).forEach(function(id){ CD[id]=1; }); render(); }).catch(function(){ render(); });
+    .then(function(d){ D = d; (d.CD||[]).forEach(function(id){ CD[id]=1; }); ensureBase(me); render(); }).catch(function(){ render(); });
   }
   function loadDb(){
     return SB.from('carnet').select('id,data').then(function(r){
       if(r.error){ status='err'; errMsg=r.error.message; state = migrate({}); render(); return; }
       var rows = {}; (r.data||[]).forEach(function(x){ rows[x.id]=x.data; });
       state = migrate(rows.state || {});
-      ['a','b'].forEach(function(p){ var x = rows['progress-'+p]; if(x && x.d) prog[p]=x; var av = rows['avatar-'+p]; if(av && av.img) pics[p]=av.img; });
+      ['a','b'].forEach(function(p){ var x = rows['progress-'+p]; if(x && x.d) prog[p]=x; var av = rows['avatar-'+p]; if(av && av.img) pics[p]=av.img; if(rows['seen-'+p]) seen[p]=rows['seen-'+p]; if(rows['base-'+p]) bases[p]=rows['base-'+p]; });
       status = 'ok'; render();
       SB.channel('carnet').on('postgres_changes',{event:'*', schema:'public', table:'carnet'}, function(ev){
         var row = ev.new; if(!row || !row.id) return;
         if(row.id==='state'){ if(Date.now()-lastSave < 4000 || pending.state || ui.editing || ui.addTask) return; state = migrate(row.data); }
+        else if(row.id.indexOf('seen-')===0){ seen[row.id.slice(5)] = row.data; }
+        else if(row.id.indexOf('base-')===0){ bases[row.id.slice(5)] = row.data; }
         else if(row.id.indexOf('avatar-')===0){ if(row.data && row.data.img) pics[row.id.slice(7)] = row.data.img; }
         else if(row.id.indexOf('progress-')===0){ var p=row.id.slice(9); if(p!==me || !syncing) prog[p]=row.data; }
         render();
       }).subscribe();
+      presCh = SB.channel('presence-carnet', {config:{presence:{key: (session && session.user && session.user.id) || 'x'}}});
+      presCh.on('presence', {event:'sync'}, function(){
+        var st = presCh.presenceState(), o = {};
+        Object.keys(st).forEach(function(k){ (st[k]||[]).forEach(function(m){ if(m && m.p) o[m.p] = true; }); });
+        online = o; render();
+      }).subscribe(function(stt){ if(stt==='SUBSCRIBED') trackPresence(); });
+      touchSeen(); setInterval(function(){ if(document.visibilityState==='visible') touchSeen(); }, 3*60*1000);
+      setInterval(function(){ if(!ui.sheet && !ui.importFor && !ui.editing && !ui.addAch && !ui.addTask && document.visibilityState==='visible') render(); }, 60*1000);
       syncGame(false);
     });
   }
