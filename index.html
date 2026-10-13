@@ -32,6 +32,12 @@ body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;m
 .side{background:#1b2029e6;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
 @media (min-width:1360px){ .side{position:fixed;top:20px;left:calc(50% + 26rem + 16px);width:280px;max-height:calc(100vh - 40px);overflow-y:auto;z-index:4} }
 .side-h{display:flex;justify-content:space-between;align-items:center}
+.side-hr{display:flex;align-items:center;gap:6px}
+.side-x{border:0;background:transparent;color:var(--muted);width:24px;height:24px;border-radius:6px;font-size:.85rem}
+.side-x:hover{background:var(--surface);color:var(--ink)}
+.side-open{align-self:flex-end;border:1px solid var(--line);background:#1b2029e6;color:var(--muted);border-radius:999px;padding:5px 12px;font-weight:700;font-size:.8rem;display:inline-flex;gap:6px;align-items:center}
+.side-open:hover{color:var(--ink);border-color:var(--muted)}
+@media (min-width:1360px){ .side-open{position:fixed;top:20px;left:calc(50% + 26rem + 16px);z-index:4} }
 .side-h .count{font-size:.72rem;background:var(--surface);border-radius:999px;padding:0 8px;color:var(--muted)}
 .side-tabs{display:flex;gap:6px}
 .side-tabs button{flex:1;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:4px 6px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;font-size:.8rem}
@@ -808,7 +814,10 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   var RACE = {Asura:'Asura',Charr:'Charr',Human:'Humain',Norn:'Norn',Sylvari:'Sylvari'};
   var profIcons = null;
   function loadProfIcons(){ if(profIcons) return; profIcons = {}; apiGet('professions?ids=all').then(function(l){ l.forEach(function(x){ profIcons[x.id] = x.icon_big || x.icon; }); render(); }).catch(function(){}); }
+  var charsClosed = false; try{ charsClosed = localStorage.getItem('gw2-chars-closed')==='1'; }catch(e){}
+  function setCharsClosed(v){ charsClosed = v; try{ localStorage.setItem('gw2-chars-closed', v?'1':'0'); }catch(e){} render(); }
   function charsPanel(){
+    if(charsClosed) return h('button',{class:'side-open', title:'Afficher les personnages', onclick:function(){ setCharsClosed(false); }},[ h('span',{'aria-hidden':'true',text:'⚔'}), 'Personnages' ]);
     var who = ui.charsOf || me || 'a';
     var data = prog[who] && prog[who].chars, acc = prog[who] && prog[who].acc;
     var tabs = h('div',{class:'side-tabs'}, P().map(function(p){ return h('button',{class:'p'+p, 'aria-pressed':String(p===who), onclick:function(){ ui.charsOf=p; render(); }},[ avatar(p), nm(p) ]); }));
@@ -827,7 +836,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
           href ? h('span',{class:'char-go','aria-hidden':'true',text:'↗'}) : null ]) ]);
       }));
     }
-    return h('aside',{class:'side', 'aria-label':'Personnages'},[ h('div',{class:'side-h'},[ h('span',{class:'eyebrow',text:'Personnages'}), Array.isArray(data) ? h('span',{class:'count',text:String(data.length)}) : null ]), tabs, body ]);
+    return h('aside',{class:'side', 'aria-label':'Personnages'},[ h('div',{class:'side-h'},[ h('span',{class:'eyebrow',text:'Personnages'}), h('span',{class:'side-hr'},[ Array.isArray(data) ? h('span',{class:'count',text:String(data.length)}) : null, h('button',{class:'side-x', title:'Fermer la liste', 'aria-label':'Fermer la liste des personnages', onclick:function(){ setCharsClosed(true); }},[ '✕' ]) ]) ]), tabs, body ]);
   }
   function gainsCard(){
     var rows = [], total = 0, any = false, since = null;
