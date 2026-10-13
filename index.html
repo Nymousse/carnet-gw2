@@ -189,6 +189,12 @@ textarea{min-height:3.5rem;resize:vertical}
 .solo-head .grow{flex:1;min-width:0}
 .obj{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--pc);border-radius:10px;overflow:hidden}
 .obj-head{display:flex;gap:12px;align-items:flex-start;padding:14px 16px 10px}
+.grip{cursor:grab;touch-action:none;user-select:none;color:var(--muted);font-size:1.25rem;line-height:1;padding:4px 2px;margin:0 -6px 0 -8px;border-radius:6px}
+.grip:hover{color:var(--ink);background:var(--sunk)}
+.obj.dragging{opacity:.95;box-shadow:0 18px 40px #000a;position:relative;z-index:5;cursor:grabbing}
+.obj.drop-before{box-shadow:0 -3px 0 var(--pb)}
+.obj.drop-after{box-shadow:0 3px 0 var(--pb)}
+body.is-dragging{user-select:none;cursor:grabbing}
 .obj-check{width:28px;height:28px;flex-shrink:0;border-radius:50%;border:2px solid var(--pc);background:transparent;display:grid;place-items:center;color:#fff;font-weight:800;margin-top:2px}
 .obj-check[aria-pressed="true"]{background:var(--pc)}
 .obj-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
@@ -577,6 +583,39 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   function openSheet(id, p){ ui.hist = []; ui.item = null; ui.sheet = {id:id, p:p || (ui.sheet&&ui.sheet.p) || me || (ui.tab==='a'||ui.tab==='b'?ui.tab:'a')}; renderSheet(); }
   function goSub(id){ ui.hist.push(ui.sheet.id); ui.item=null; ui.sheet = {id:id, p:ui.sheet.p}; renderSheet(); var s=layer.querySelector('.scrim'); if(s) s.scrollTop=0; }
 
+  /* ---------- glisser-déposer des objectifs ---------- */
+  function startDrag(e, l, from){
+    if(e.button!=null && e.button!==0) return;
+    e.preventDefault();
+    var card = e.target.closest('section.obj'); if(!card) return;
+    var cards = Array.prototype.slice.call(app.querySelectorAll('section.obj[data-oi]'));
+    var y0 = e.clientY, target = from, place = 'before';
+    card.classList.add('dragging'); document.body.classList.add('is-dragging');
+    function clear(){ cards.forEach(function(c){ c.classList.remove('drop-before','drop-after'); }); }
+    function move(ev){
+      card.style.transform = 'translateY('+(ev.clientY-y0)+'px)';
+      clear(); target = from;
+      for(var i=0;i<cards.length;i++){
+        if(cards[i]===card) continue;
+        var r = cards[i].getBoundingClientRect();
+        if(ev.clientY >= r.top && ev.clientY <= r.bottom){
+          place = ev.clientY < r.top + r.height/2 ? 'before' : 'after';
+          target = +cards[i].getAttribute('data-oi'); cards[i].classList.add('drop-'+place); break;
+        }
+      }
+      if(ev.clientY < 60) window.scrollBy(0,-12); else if(ev.clientY > window.innerHeight-60) window.scrollBy(0,12);
+    }
+    function up(){
+      document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up);
+      document.body.classList.remove('is-dragging'); card.classList.remove('dragging'); card.style.transform=''; clear();
+      if(target===from) return;
+      var to = target + (place==='after' ? 1 : 0); if(from < to) to--;
+      if(to===from) return;
+      l.splice(to, 0, l.splice(from,1)[0]); changed();
+    }
+    document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  }
+
   /* ---------- rendu ---------- */
   function render(){
     if(!state || status==='login') return;
@@ -719,12 +758,14 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
           h('button',{class:'add-toggle', text:'+ Tâche libre', onclick:function(){ ui.addTask=o.id; ui.addAch=null; render(); }})
         ]);
       }
-      app.appendChild(h('section',{class:'obj'+(shared?' shared':' p'+key)+(allDone?' done':'')},[
+      app.appendChild(h('section',{class:'obj'+(shared?' shared':' p'+key)+(allDone?' done':''), 'data-oi':String(oi)},[
         h('div',{class:'obj-head'},[
+          ro ? null : h('span',{class:'grip', title:'Glisser pour déplacer', 'aria-hidden':'true', onpointerdown:function(e){ startDrag(e, l, oi); }},[ '⠿' ]),
           checks,
           h('div',{class:'obj-main'},[ h('div',{class:'obj-title',text:o.title}), o.desc ? h('div',{class:'desc',text:o.desc}) : null, progs ]),
           ro ? null : h('div',{class:'icons'},[
             h('button',{class:'ib', title:'Monter', 'aria-label':'Monter', disabled:oi===0, text:'↑', onclick:function(){ l.splice(oi-1,0,l.splice(oi,1)[0]); changed(); }}),
+            h('button',{class:'ib', title:'Descendre', 'aria-label':'Descendre', disabled:oi===l.length-1, text:'↓', onclick:function(){ l.splice(oi+1,0,l.splice(oi,1)[0]); changed(); }}),
             h('button',{class:'ib', text:'Modifier', onclick:function(){ ui.editing=o.id; render(); }}),
             h('button',{class:'ib danger','data-arm':ui.arm===o.id?'1':null,'aria-label':'Supprimer l’objectif', text:ui.arm===o.id?'Supprimer ?':'✕', onclick:function(){ armDelete(o.id, function(){ l.splice(oi,1); }); }})
           ])
