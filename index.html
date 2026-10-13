@@ -881,7 +881,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     goofyName = NOMS[Math.floor(Math.random()*NOMS.length)];
     b.textContent = goofyText(); b.classList.add('on');
     clearTimeout(sayTimer);
-    sayTimer = setTimeout(function(){ b.classList.remove('on'); sayTimer = setTimeout(goofySay, 15000); }, 30000);
+    sayTimer = setTimeout(function(){ b.classList.remove('on'); sayTimer = setTimeout(goofySay, 30000); }, 10000);
   }
   function setGoofyStage(stage){
     var img = goofyEl.querySelector('.goofy-img');
