@@ -295,7 +295,8 @@ body.is-dragging{user-select:none;cursor:grabbing}
 .r-name{font-weight:700;overflow-wrap:anywhere}
 .r-cat{font-size:.78rem;color:var(--muted);overflow-wrap:anywhere}
 .state-pill{font-size:.75rem;font-weight:800;border-radius:999px;padding:2px 9px;white-space:nowrap;border:1.5px solid var(--pc);color:var(--pc);background:transparent}
-button.state-pill:not(:disabled):hover{background:var(--pcs)}
+button.state-pill:not(:disabled):not(.fin):hover{background:var(--pcs)}
+button.state-pill.fin:not(:disabled):hover{filter:brightness(1.1)}
 .state-pill.done{background:var(--pc);color:#14101f}
 .state-pill.fin{background:var(--ok);border-color:var(--ok);color:#0d2416}
 .state-pill.none{border-color:var(--line);color:var(--muted)}
@@ -388,7 +389,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 .me-ask{background:var(--gold);color:#1a1f2e;border-radius:12px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-weight:700}
 .me-ask .me-btn{color:#1a1f2e;border-color:#1a1f2e44;background:#ffffff66}
 .carnet-head{--pc:var(--accent);--pcs:var(--accent-soft)}
-.carnet-head .avatar{background:var(--accent);color:#1c1530}
+.carnet-head>.avatar{background:var(--accent);color:#1c1530}
 .obj.shared{--pc:var(--c1);--pcs:var(--c1s)}
 .obj-checks{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
 .obj-checks .obj-check{width:26px;height:26px;font-size:.75rem}
@@ -467,6 +468,23 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   .g-foot{padding:12px 16px}
 }
 @media (max-width:520px){li.item{grid-template-columns:auto 1fr}li.item>.icons{grid-column:1/-1;justify-content:flex-end}.banner h1{font-size:1.6rem}.cat-row{grid-template-columns:auto 1fr}.cat-row .pills{grid-column:2;justify-content:flex-start}.ach-row{grid-template-columns:auto 1fr auto}.ach-row>.state-pill{grid-column:2;justify-self:start}}
+
+.state-pill.multi{display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 2px}
+.state-pill.multi .avatar{width:20px;height:20px;font-size:.6rem}
+.state-pill.multi.fin .avatar{box-shadow:0 0 0 2px #0d2416}
+.mini .avatar,.obj-prog .avatar{width:20px;height:20px;font-size:.6rem}
+.obj-check.av{border:none;padding:0;position:relative;background:none}
+.obj-check.av .avatar{width:100%;height:100%;font-size:.7rem;opacity:.55;box-shadow:0 0 0 2px var(--line)}
+.obj-check.av[aria-pressed="true"]{background:none}
+.obj-check.av[aria-pressed="true"] .avatar{opacity:1;box-shadow:0 0 0 2px var(--ok)}
+.obj-check.av .ck{position:absolute;right:-4px;bottom:-4px;width:14px;height:14px;border-radius:50%;background:var(--ok);color:#0d2416;font-size:.6rem;font-weight:900;display:grid;place-items:center}
+.task-row{grid-template-columns:1fr auto auto!important}
+.t-check{display:flex;align-items:center;gap:12px;background:none;border:0;padding:4px 0;text-align:left;color:inherit;cursor:pointer;min-width:0;width:100%}
+.t-check:disabled{cursor:default}
+.t-box{width:24px;height:24px;flex-shrink:0;border-radius:6px;border:2px solid var(--muted);display:grid;place-items:center;font-weight:900;font-size:.9rem;color:#0d2416;transition:background .15s,border-color .15s}
+.t-check:not(:disabled):hover .t-box{border-color:var(--ok)}
+.t-check[aria-checked="true"] .t-box{background:var(--ok);border-color:var(--ok)}
+.t-check[aria-checked="true"] .r-name{text-decoration:line-through;text-decoration-color:#4ade8088}
 </style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%231c212b%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2218%22 text-anchor=%22middle%22 fill=%22%23ff7ac6%22%3E%E2%98%85%3C/text%3E%3C/svg%3E">
 </head>
@@ -1015,14 +1033,15 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   function stateBtn(p, val, cnt, onclick, multi){
     var ro = readOnly();
     var label = val ? '✓ Terminé' : (cnt ? cnt[0]+' / '+cnt[1] : 'À faire');
-    if(multi) label = nm(p).slice(0,1).toUpperCase()+' '+(val ? '✓' : (cnt ? cnt[0]+'/'+cnt[1] : '–'));
-    return h('button',{class:'state-pill p'+p+(val?(multi?' done':' fin'):(cnt&&cnt[0]?'':' none')), disabled:ro||val==='api', title:(multi?nm(p)+' : ':'')+(val==='api'?'Validé par la progression du jeu':'Marquer comme fait'), text:label, onclick:onclick});
+    var title = (multi?nm(p)+' : ':'')+(val==='api'?'Validé par la progression du jeu':(val?'Terminé':'Marquer comme fait'));
+    if(multi) return h('button',{class:'state-pill multi p'+p+(val?' fin':(cnt&&cnt[0]?'':' none')), disabled:ro||val==='api', title:title, 'aria-label':title, onclick:onclick},[ avatar(p), h('span',{text: val ? '✓' : (cnt ? cnt[0]+'/'+cnt[1] : '–')}) ]);
+    return h('button',{class:'state-pill p'+p+(val?' fin':(cnt&&cnt[0]?'':' none')), disabled:ro||val==='api', title:title, text:label, onclick:onclick});
   }
   function renderList(key){
     var ro = readOnly(), l = list(key), ps = listPlayers(key), shared = key==='carnet';
     var head = shared
       ? h('section',{class:'solo-head carnet-head'},[ h('span',{class:'avatar',text:'★'}), h('div',{class:'grow'},[ h('div',{class:'eyebrow',text:'Objectifs communs'}), h('h2',{text:'Notre carnet'}),
-          h('div',{class:'who-mini'}, ps.map(function(p){ var x=listTally(key,p); return h('span',{class:'mini'},[ h('span',{class:'num',text:nm(p)+' '+x[0]+'/'+x[1]}), bar(x,PCOL[p]) ]); })) ]) ])
+          h('div',{class:'who-mini'}, ps.map(function(p){ var x=listTally(key,p); return h('span',{class:'mini',title:nm(p)},[ avatar(p), h('span',{class:'num',text:x[0]+'/'+x[1]}), bar(x,PCOL[p]) ]); })) ]) ])
       : h('section',{class:'solo-head p'+key},[ avatar(key), h('div',{class:'grow'},[ h('div',{class:'eyebrow',text:'Objectifs solo'}), h('h2',{text:'Les objectifs de '+nm(key)}),
           h('div',{class:'num',text: l.length ? listTally(key,key)[0]+' / '+l.length+' objectifs terminés' : 'Pas encore d’objectif'}) ]),
           getKey() || ro || key!==me ? null : h('button',{class:'btn', style:'background:'+PCOL[key]+';border-color:'+PCOL[key], text:'Ajouter ma clé API', onclick:function(){ openImport(key); }}) ]);
@@ -1055,9 +1074,9 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       var allDone = ps.every(function(p){ return objDone(p,o); });
       var checks = h('div',{class:'obj-checks'}, ps.map(function(p){
         var d = objDone(p,o);
-        return h('button',{class:'obj-check p'+p, style:'--pc:'+PCOL[p], 'aria-pressed':String(d), disabled:ro, title:nm(p), 'aria-label':nm(p)+(d?' : objectif terminé':' : marquer comme terminé'), text: d ? '✓' : (shared ? nm(p).slice(0,1).toUpperCase() : ''), onclick:function(){ o.done[p]=!o.done[p]; changed(); }});
+        return h('button',{class:'obj-check p'+p+(shared?' av':''), style:'--pc:'+PCOL[p], 'aria-pressed':String(d), disabled:ro, title:nm(p), 'aria-label':nm(p)+(d?' : objectif terminé':' : marquer comme terminé'), text: shared ? null : (d ? '✓' : ''), onclick:function(){ o.done[p]=!o.done[p]; changed(); }}, shared ? [ avatar(p), d ? h('span',{class:'ck','aria-hidden':'true',text:'✓'}) : null ] : null);
       }));
-      var progs = h('div',{class:'who-mini'}, ps.map(function(p){ var t=objTally(p,o); if(!t[1]) return null; return h('span',{class:'mini obj-prog'},[ h('span',{class:'num',text:(shared?nm(p)+' ':'')+t[0]+' / '+t[1]}), bar(t,PCOL[p]) ]); }));
+      var progs = h('div',{class:'who-mini'}, ps.map(function(p){ var t=objTally(p,o); if(!t[1]) return null; return h('span',{class:'mini obj-prog',title:nm(p)},[ shared ? avatar(p) : null, h('span',{class:'num',text:t[0]+' / '+t[1]}), bar(t,PCOL[p]) ]); }));
       var rows = o.achs.map(function(xa, xi){
         var a = A(xa.id); if(!a) return null;
         var anyDone = ps.every(function(p){ return achDone(p,xa); });
@@ -1070,10 +1089,11 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       }).filter(Boolean);
       var trows = o.tasks.map(function(tk, ti){
         var all = ps.every(function(p){ return taskDone(p,tk); });
+        var who = shared ? (me||'a') : key, mine = !!taskDone(who,tk);
+        var flip = function(p){ tk.m=tk.m||{}; tk.m[p]=!tk.m[p]; changed(); };
         return h('div',{class:'ach-row task-row'+(all?' is-done':'')},[
-          h('span',{class:'tk','aria-hidden':'true',text:'✎'}),
-          h('div',{class:'r-name',text:tk.t}),
-          h('div',{class:'pchecks'}, ps.map(function(p){ return stateBtn(p, taskDone(p,tk), null, function(){ tk.m=tk.m||{}; tk.m[p]=!tk.m[p]; changed(); }, shared); })),
+          h('button',{class:'t-check', role:'checkbox', 'aria-checked':String(mine), disabled:ro, title: shared ? 'Cocher pour '+nm(who) : 'Cocher', onclick:function(){ flip(who); }},[ h('span',{class:'t-box','aria-hidden':'true',text: mine ? '✓' : ''}), h('span',{class:'r-name',text:tk.t}) ]),
+          shared ? h('div',{class:'pchecks'}, ps.map(function(p){ return stateBtn(p, taskDone(p,tk), null, function(){ flip(p); }, true); })) : h('span'),
           ro ? null : h('button',{class:'ib danger','data-arm':ui.arm===o.id+'-t'+ti?'1':null,'aria-label':'Retirer cette tâche', text:ui.arm===o.id+'-t'+ti?'Retirer ?':'✕', onclick:function(){ armDelete(o.id+'-t'+ti, function(){ o.tasks.splice(ti,1); }); }})
         ]);
       });
