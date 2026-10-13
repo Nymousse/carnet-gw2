@@ -29,6 +29,24 @@ body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;m
   background-image:radial-gradient(60rem 28rem at 15% -6rem, #ff7ac62e, transparent 70%),radial-gradient(60rem 30rem at 85% -8rem, #b48af833, transparent 70%),
   radial-gradient(40rem 30rem at 50% 110%, #3b247055, transparent 70%),linear-gradient(180deg,#14171f 0,var(--bg) 26rem);background-attachment:fixed}
 #app{max-width:52rem;margin:0 auto;padding-inline:16px;padding-block:20px 64px;display:flex;flex-direction:column;gap:18px}
+.side{background:#1b2029e6;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+@media (min-width:1360px){ .side{position:fixed;top:20px;left:calc(50% + 26rem + 16px);width:280px;max-height:calc(100vh - 40px);overflow-y:auto;z-index:4} }
+.side-h{display:flex;justify-content:space-between;align-items:center}
+.side-h .count{font-size:.72rem;background:var(--surface);border-radius:999px;padding:0 8px;color:var(--muted)}
+.side-tabs{display:flex;gap:6px}
+.side-tabs button{flex:1;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:4px 6px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;font-size:.8rem}
+.side-tabs button .avatar{width:18px;height:18px;font-size:.6rem}
+.side-tabs button[aria-pressed="true"]{color:#fff;border-color:var(--pc);background:color-mix(in srgb,var(--pc) 18%,transparent)}
+.chars{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+@media (max-width:1359px){ .chars{display:grid;grid-template-columns:repeat(auto-fill,minmax(14rem,1fr))} }
+.char{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;background:var(--surface);border:1px solid transparent;text-decoration:none;color:inherit;border-left:3px solid var(--prof)}
+a.char:hover{border-color:var(--line);border-left-color:var(--prof);background:#323a48}
+.char-ic{width:30px;height:30px;flex-shrink:0;display:grid;place-items:center;border-radius:6px;background:#0005;color:var(--prof);font-weight:800}
+.char-ic img{width:26px;height:26px}
+.char-t{display:flex;flex-direction:column;min-width:0;flex:1}
+.char-n{font-weight:700;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.char-m{font-size:.72rem;color:var(--muted)}
+.char-go{color:var(--muted);font-size:.8rem}
 h1,h2,h3{font-family:var(--f-display);font-weight:700;text-wrap:balance;margin:0;letter-spacing:0}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer} button:disabled{cursor:default}
@@ -786,6 +804,31 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up); window.addEventListener('scroll', onScroll);
   }
 
+  var PROF = {Guardian:['Gardien','#72c1d9'],Warrior:['Guerrier','#ffd166'],Revenant:['Revenant','#d16e5a'],Engineer:['Ingénieur','#d09c59'],Ranger:['Rôdeur','#8cdc82'],Thief:['Voleur','#c08f95'],Elementalist:['Élémentaliste','#f68a87'],Mesmer:['Envoûteur','#b679d5'],Necromancer:['Nécromant','#52a76f']};
+  var RACE = {Asura:'Asura',Charr:'Charr',Human:'Humain',Norn:'Norn',Sylvari:'Sylvari'};
+  var profIcons = null;
+  function loadProfIcons(){ if(profIcons) return; profIcons = {}; apiGet('professions?ids=all').then(function(l){ l.forEach(function(x){ profIcons[x.id] = x.icon_big || x.icon; }); render(); }).catch(function(){}); }
+  function charsPanel(){
+    var who = ui.charsOf || me || 'a';
+    var data = prog[who] && prog[who].chars, acc = prog[who] && prog[who].acc;
+    var tabs = h('div',{class:'side-tabs'}, P().map(function(p){ return h('button',{class:'p'+p, 'aria-pressed':String(p===who), onclick:function(){ ui.charsOf=p; render(); }},[ avatar(p), nm(p) ]); }));
+    var body;
+    if(data==='noperm') body = h('p',{class:'hint',text: who===me ? 'Ta clé API n’a pas le droit « characters ». Crée une nouvelle clé avec account, progression et characters, puis remplace-la via « Synchroniser ».' : nm(who)+' doit ajouter le droit « characters » à sa clé API.'});
+    else if(!Array.isArray(data)) body = h('p',{class:'hint',text: who===me ? 'Synchronise ta clé pour voir tes personnages.' : 'Les personnages de '+nm(who)+' apparaîtront après sa synchro.'});
+    else {
+      if(data.length) loadProfIcons();
+      var sorted = data.slice().sort(function(x,y){ return (y.age||0)-(x.age||0); });
+      body = h('ul',{class:'chars'}, sorted.map(function(c){
+        var pr = PROF[c.p] || [c.p,'#9aa4ba'], icon = profIcons && profIcons[c.p];
+        var href = acc && acc.name ? 'https://gw2.app/fr/characters/'+encodeURIComponent(acc.name)+'/'+encodeURIComponent(c.n)+'?tab=equipment' : null;
+        return h('li',{},[ h(href?'a':'div',{class:'char', href:href, target:href?'_blank':null, rel:href?'noopener':null, style:'--prof:'+pr[1]},[
+          h('span',{class:'char-ic'},[ icon ? h('img',{src:icon, alt:''}) : h('span',{text:pr[0].slice(0,1)}) ]),
+          h('span',{class:'char-t'},[ h('span',{class:'char-n',text:c.n}), h('span',{class:'char-m',text:'Niv. '+c.l+' · '+pr[0]+' · '+(RACE[c.r]||c.r)+(c.age?' · '+Math.round(c.age/3600)+' h':'')}) ]),
+          href ? h('span',{class:'char-go','aria-hidden':'true',text:'↗'}) : null ]) ]);
+      }));
+    }
+    return h('aside',{class:'side', 'aria-label':'Personnages'},[ h('div',{class:'side-h'},[ h('span',{class:'eyebrow',text:'Personnages'}), Array.isArray(data) ? h('span',{class:'count',text:String(data.length)}) : null ]), tabs, body ]);
+  }
   function gainsCard(){
     var rows = [], total = 0, any = false, since = null;
     P().forEach(function(p){
@@ -834,6 +877,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       h('section',{class:'summary','aria-label':'Progression'},players.concat([ gainsCard() ])),
       me ? meRow : null
     ]));
+    app.appendChild(charsPanel());
     if(!me) app.appendChild(h('div',{class:'me-ask'},[ 'Qui es-tu ? La page s’ouvrira ensuite directement sur ton onglet, sur ce navigateur.' ].concat(['a','b'].map(function(p){
       return h('button',{class:'me-btn p'+p, onclick:function(){ setMe(p); }},[ avatar(p), 'Je suis '+nm(p) ]);
     }))));
@@ -1183,11 +1227,15 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       var c = compact(res.j), old = prog[me] && prog[me].d, oldAcc = prog[me] && prog[me].acc;
       return fetch('https://api.guildwars2.com/v2/account?access_token='+encodeURIComponent(k)).then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(a){
         var acc = a && a.name ? {name:a.name, dap:a.daily_ap||0, map:a.monthly_ap||0} : oldAcc;
-        var same = old && JSON.stringify(old)===JSON.stringify(c.d) && JSON.stringify(oldAcc||null)===JSON.stringify(acc||null);
-        var stale = !prog[me] || (Date.now() - new Date(prog[me].at).getTime() > 3600e3);
-        prog[me] = {at:new Date().toISOString(), n:c.n, d:c.d, acc:acc}; ensureBase(me);
-        if(!same || stale || force) queue('progress-'+me, prog[me]);
-        render();
+        var oldChars = prog[me] && prog[me].chars;
+        return fetch('https://api.guildwars2.com/v2/characters?ids=all&access_token='+encodeURIComponent(k)).then(function(r){ return r.ok ? r.json() : 'noperm'; }).catch(function(){ return null; }).then(function(cs){
+          var chars = Array.isArray(cs) ? cs.map(function(x){ return {n:x.name, p:x.profession, r:x.race, l:x.level, g:x.gender, age:x.age, at:x.created}; }) : (cs==='noperm' ? 'noperm' : oldChars);
+          var same = old && JSON.stringify(old)===JSON.stringify(c.d) && JSON.stringify(oldAcc||null)===JSON.stringify(acc||null) && JSON.stringify(oldChars||null)===JSON.stringify(chars||null);
+          var stale = !prog[me] || (Date.now() - new Date(prog[me].at).getTime() > 3600e3);
+          prog[me] = {at:new Date().toISOString(), n:c.n, d:c.d, acc:acc, chars:chars}; ensureBase(me);
+          if(!same || stale || force) queue('progress-'+me, prog[me]);
+          render();
+        });
       });
     }).catch(function(){ syncing = false; syncErr = 'Impossible de joindre l’API du jeu'; render(); });
   }
@@ -1202,7 +1250,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     var sheet = h('div',{class:'sheet p'+p, role:'dialog', 'aria-modal':'true', 'aria-label':'Clé API'},[
       h('div',{class:'sheet-head'},[ avatar(p), h('div',{class:'grow'},[ h('div',{class:'eyebrow',text:'Progression du jeu'}), h('h2',{text:'Clé API de '+nm(p)}) ]), h('button',{class:'close','aria-label':'Fermer',text:'✕',onclick:back}) ]),
       h('ol',{class:'howto'},[
-        h('li',{},[ 'Créez une clé sur ', h('a',{class:'lnk', href:'https://account.arena.net/applications', target:'_blank', rel:'noopener', text:'account.arena.net › Applications ↗'}), ' avec les droits ', h('code',{text:'account'}), ' et ', h('code',{text:'progression'}), '.' ]),
+        h('li',{},[ 'Créez une clé sur ', h('a',{class:'lnk', href:'https://account.arena.net/applications', target:'_blank', rel:'noopener', text:'account.arena.net › Applications ↗'}), ' avec les droits ', h('code',{text:'account'}), ', ', h('code',{text:'progression'}), ' et ', h('code',{text:'characters'}), '.' ]),
         h('li',{},[ 'Collez-la ici. Le carnet se synchronisera tout seul à chaque ouverture, puis toutes les 5 minutes.', h('div',{style:'margin-top:6px'},[ key ]) ])
       ]),
       h('p',{class:'hint',text:'La clé reste uniquement dans ce navigateur. Seule la liste de vos succès est enregistrée dans le carnet, pour que l’autre joueur la voie.'}),
@@ -1216,6 +1264,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
           fetch('https://api.guildwars2.com/v2/tokeninfo?access_token='+encodeURIComponent(k)).then(function(r){ return r.json(); }).then(function(t){
             if(!t || !t.permissions){ msg.textContent='Clé refusée : '+((t&&t.text)||'inconnue'); return; }
             if(t.permissions.indexOf('progression')<0 || t.permissions.indexOf('account')<0){ msg.textContent='Il manque les droits account et progression à cette clé.'; return; }
+            if(t.permissions.indexOf('characters')<0) syncErr = 'Astuce : ajoute le droit « characters » à ta clé pour voir tes personnages.';
             setKey(k); ui.importFor=null; renderSheet(); syncGame(true);
           }).catch(function(){ msg.textContent='Impossible de joindre l’API du jeu.'; });
         }})
