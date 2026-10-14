@@ -508,6 +508,17 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 .fest-sync-p{display:inline-flex;align-items:center;gap:6px}
 .fest-sync-p .avatar{width:18px;height:18px;font-size:.55rem}
 .fest-sync .sync-btn{margin-left:auto}
+
+.fest-cat-h.fold{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;color:inherit;text-align:left;cursor:pointer;margin:0}
+.fest-cat-h.fold:hover{border-color:var(--muted)}
+.fest-cat-h.fold[aria-expanded="true"]{margin-bottom:8px}
+.fold-ic{color:var(--muted);font-size:1rem;width:1rem;text-align:center}
+.cat-n{color:var(--muted);font-weight:500;font-size:.85rem}
+.cat-ok{color:var(--ok);font-size:.85rem}
+.cat-add{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 2px 10px;font-size:.85rem;color:var(--muted)}
+.cat-add select{max-width:18rem}
+.cat-add .btn{padding:6px 12px}
+.cat-msg{color:var(--ok)}
 </style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%231c212b%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2218%22 text-anchor=%22middle%22 fill=%22%23ff7ac6%22%3E%E2%98%85%3C/text%3E%3C/svg%3E">
 </head>
@@ -522,7 +533,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   var state = null, catalog = null, D = null, CI = null, prog = {a:{}, b:{}}, icons = {}, shardsLoaded = {}, CD = {};
   var app = document.getElementById('app'), layer = document.getElementById('layer');
   var ui = {tab:null, editing:null, arm:null, sheet:null, hist:[], item:null, importFor:null, addAch:null, addQ:'', addTask:null,
-            cq:'', cg:'', cc:'', cf:'all', limit:60};
+            cq:'', cg:'', cc:'', cf:'all', limit:60, open:{}};
   var me = null;
   try{ me = localStorage.getItem('gw2-me'); if(me!=='a' && me!=='b') me=null; }catch(e){}
   try{ var sv = JSON.parse(localStorage.getItem('gw2-ui')||'{}'); if(sv.cf) ui.cf = sv.cf; }catch(e){}
@@ -1180,6 +1191,12 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     if(q) lst = searchCatalog(q);
     else if(ui.cc!=='' || ui.cg) lst = catalog.A.filter(function(a){ return ui.cc!=='' ? String(a[3])===ui.cc : catOf(a)[2]===ui.cg; });
     else lst = ui.cf==='all' ? null : catalog.A;
+    if(!q && (ui.cc!=='' || ui.cg)){
+      var cis = ui.cc!=='' ? [+ui.cc] : catalog.C.map(function(c,i){ return i; }).filter(function(i){ return catalog.C[i][2]===ui.cg && (byCat[i]||[]).length; });
+      cis.forEach(function(i){ app.appendChild(catSection(i, ui.cc!=='' || cis.length===1 || !!ui.open[i], ui.cf, cis.length>1)); });
+      if(!cis.length) app.appendChild(h('div',{class:'cat-list'},[ h('div',{class:'empty',text:'Aucun succès dans ce groupe.'}) ]));
+      return;
+    }
     if(lst){
       if(q && (ui.cc!=='' || ui.cg)) lst = lst.filter(function(a){ return ui.cc!=='' ? String(a[3])===ui.cc : catOf(a)[2]===ui.cg; });
       lst = lst.filter(function(a){
@@ -1199,6 +1216,39 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     app.appendChild(h('div',{class:'hint',text:lst.length+' succès'}));
     app.appendChild(box);
   }
+  /* ---------- une catégorie entière : en-tête, progression à deux, ajout groupé, liste complète ---------- */
+  function filtAch(f){ return function(a){ switch(f){ case 'todo-a': return !apiDone('a',a[0]); case 'todo-b': return !apiDone('b',a[0]); case 'done-ab': return apiDone('a',a[0]) && apiDone('b',a[0]); case 'carnet': return tracked(a[0]).length>0; } return true; }; }
+  function catSection(i, open, f, foldable){
+    var c = catalog.C[i], all = byCat[i] || [], lst = all.filter(filtAch(f));
+    var tallies = P().map(function(p){
+      if(!hasProg(p)) return null;
+      var x = [all.filter(function(a){ return apiDone(p,a[0]); }).length, all.length];
+      return h('span',{class:'mini',title:nm(p)},[ avatar(p), h('span',{class:'num',text:x[0]+'/'+x[1]}), bar(x,PCOL[p]) ]);
+    });
+    var both = P().every(hasProg) && all.length && all.every(function(a){ return P().every(function(p){ return apiDone(p,a[0]); }); });
+    var head = h(foldable ? 'button' : 'div',{class:'fest-cat-h'+(foldable?' fold':''), 'aria-expanded': foldable ? String(open) : null, onclick: foldable ? function(){ ui.open[i] = !open; render(); } : null},[
+      c[3] ? h('img',{src:c[3], alt:''}) : null,
+      h('h3',{},[ c[1], h('span',{class:'cat-n',text:' · '+all.length+' succès'}), both ? h('span',{class:'cat-ok',text:' ✓ fini à deux'}) : null ]),
+      h('div',{class:'who-mini'}, tallies),
+      foldable ? h('span',{class:'fold-ic','aria-hidden':'true',text: open ? '▾' : '▸'}) : null
+    ]);
+    var kids = [head];
+    if(open){
+      if(!readOnly() && all.length){
+        var did = 'catadd-'+i, dest = destSelect(did, me||'a'), msg = h('span',{class:'hint cat-msg', text: ui.catMsg && ui.catMsg.i===i ? ui.catMsg.t : ''});
+        kids.push(h('div',{class:'cat-add'},[
+          h('label',{'for':did, text:'Ajouter toute la catégorie à'}), dest,
+          h('button',{class:'btn', text:'Ajouter '+lst.length+' succès', onclick:function(){
+            var v = dest.value, ids = lst.map(function(a){ return a[0]; }), k = v.split(':')[0];
+            ui.catMsg = {i:i, t:ids.length+' succès ajoutés à '+(v.split(':')[1]==='new' ? 'un nouvel objectif « '+c[1]+' »' : '« '+dest.options[dest.selectedIndex].text+' »')+' ('+listLabel(k)+') ✓'};
+            addFromSheet(v, ids, c[1], '');
+          }}), msg ]));
+      }
+      kids.push(h('div',{class:'cat-list'}, lst.length ? lst.map(function(a){ return catRow(a,''); }) : [ h('div',{class:'empty',text:'Rien à afficher avec ce filtre.'}) ]));
+    }
+    return h('div',{class:'fest-cat'}, kids);
+  }
+
   /* ---------- festivals : les catégories du jeu, affichées selon le calendrier habituel ---------- */
   // L'API du jeu ne dit pas quel festival est ouvert : on s'appuie sur leurs dates habituelles (à ajuster si ArenaNet décale).
   var FESTS = [
@@ -1247,21 +1297,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     app.appendChild(h('div',{class:'filters'}, fl.map(function(f){
       return h('button',{class:'chip','aria-pressed':String((ui.ff||'all')===f[0]), onclick:function(){ ui.ff=f[0]; render(); }},[ f[1] ]);
     })));
-    festCatIdx(sel).forEach(function(i){
-      var c = catalog.C[i], all = byCat[i];
-      var lst = all.filter(function(a){
-        switch(ui.ff){ case 'todo-a': return !apiDone('a',a[0]); case 'todo-b': return !apiDone('b',a[0]); case 'done-ab': return apiDone('a',a[0]) && apiDone('b',a[0]); } return true;
-      });
-      var tallies = P().map(function(p){
-        if(!hasProg(p)) return null;
-        var x = [all.filter(function(a){ return apiDone(p,a[0]); }).length, all.length];
-        return h('span',{class:'mini',title:nm(p)},[ avatar(p), h('span',{class:'num',text:x[0]+'/'+x[1]}), bar(x,PCOL[p]) ]);
-      });
-      app.appendChild(h('div',{class:'fest-cat'},[
-        h('div',{class:'fest-cat-h'},[ c[3] ? h('img',{src:c[3], alt:''}) : null, h('h3',{text:c[1]}), h('div',{class:'who-mini'}, tallies) ]),
-        h('div',{class:'cat-list'}, lst.length ? lst.map(function(a){ return catRow(a,''); }) : [ h('div',{class:'empty',text:'Rien à afficher avec ce filtre.'}) ])
-      ]));
-    });
+    festCatIdx(sel).forEach(function(i){ app.appendChild(catSection(i, true, ui.ff||'all', false)); });
     app.appendChild(h('div',{class:'hint',text:'Le festival en cours s’affiche tout seul selon ses dates habituelles (approximatives). Les autres restent consultables pour s’organiser.'}));
   }
   function fmtMd(s){ var m = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']; return (+s.slice(3))+(s.slice(3)==='01'?'er':'')+' '+m[+s.slice(0,2)-1]; }
