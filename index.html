@@ -527,6 +527,9 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 .obj-more:hover{color:var(--ink);background:#ffffff08}
 .split-note{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .sn-chip{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:700;border-radius:999px;padding:3px 10px 3px 4px;border:1px solid var(--line);background:#ffffff06;color:var(--muted);cursor:default}
+button.sn-chip{cursor:pointer;transition:border-color .15s,background .15s}
+button.sn-chip:hover{border-color:var(--muted)}
+.sn-eye{font-style:normal;opacity:.7}
 .sn-chip b{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;font-size:.7rem;background:#ffffff12;color:var(--muted)}
 .sn-ok b{background:#4ade8026;color:var(--ok)}
 .sn-ok.on{border-color:#4ade8066;background:#4ade8014;color:#c4f5d6}
@@ -1151,14 +1154,22 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
         ]);
       });
       var allItems = rows.concat(trows), nItemsDone = allItems.filter(function(el){ return el.classList.contains('is-done'); }).length;
-      var items = isComplete ? allItems : allItems.filter(function(el){ return el.classList.contains('is-done') === (view==='done'); });
+      var peekKey = o.id+(view==='done'?':d':':a'), peek = !!(ui.peek||{})[peekKey];
+      var isD = function(el){ return el.classList.contains('is-done'); };
+      var mainItems = allItems.filter(function(el){ return isD(el) === (view==='done'); }), extra = allItems.filter(function(el){ return isD(el) !== (view==='done'); });
+      var items = isComplete ? allItems : (peek ? extra.concat(mainItems) : mainItems);
       var LIM = 5, isOpen = !!exp[o.id+(view==='done'?':d':'')];
       var shownItems = isOpen ? items : items.slice(0, LIM);
       var toggleOpen = function(){ var ek = o.id+(view==='done'?':d':''); if(isOpen) delete exp[ek]; else exp[ek] = 1; saveExp(); render(); };
+      var togglePeek = function(){ ui.peek = ui.peek || {}; if(peek) delete ui.peek[peekKey]; else ui.peek[peekKey] = 1; render(); };
       var nLeft = allItems.length - nItemsDone, pl = function(n,w){ return n+' '+w+(n>1?'s':''); };
       var splitNote = !isComplete && nItemsDone ? h('div',{class:'split-note'},[
-        h('span',{class:'sn-chip sn-ok'+(view==='done'?' on':'')},[ h('b',{text:'✓'}), pl(nItemsDone,'terminé') ]),
-        h('span',{class:'sn-chip sn-todo'+(view==='active'?' on':'')},[ h('b',{text:'◷'}), pl(nLeft,'restant') ])
+        view==='active'
+          ? h('button',{class:'sn-chip sn-ok'+(peek?' on':''), 'aria-pressed':String(peek), title: peek ? 'Masquer les terminés de cet objectif' : 'Afficher aussi les terminés de cet objectif', onclick:togglePeek},[ h('b',{text:'✓'}), pl(nItemsDone,'terminé'), h('i',{class:'sn-eye',text: peek ? ' ▴' : ' ▾'}) ])
+          : h('span',{class:'sn-chip sn-ok on'},[ h('b',{text:'✓'}), pl(nItemsDone,'terminé') ]),
+        view==='done'
+          ? h('button',{class:'sn-chip sn-todo'+(peek?' on':''), 'aria-pressed':String(peek), title: peek ? 'Masquer les restants de cet objectif' : 'Afficher aussi les restants de cet objectif', onclick:togglePeek},[ h('b',{text:'◷'}), pl(nLeft,'restant'), h('i',{class:'sn-eye',text: peek ? ' ▴' : ' ▾'}) ])
+          : h('span',{class:'sn-chip sn-todo on'},[ h('b',{text:'◷'}), pl(nLeft,'restant') ])
       ]) : null;
       var adder = null;
       if(!ro && !(view==='done' && !isComplete)){
