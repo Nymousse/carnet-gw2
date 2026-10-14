@@ -519,6 +519,12 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 .cat-add select{max-width:18rem}
 .cat-add .btn{padding:6px 12px}
 .cat-msg{color:var(--ok)}
+
+.obj-main.can-open{cursor:pointer}
+.obj-main.can-open:hover .obj-title{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.obj-caret{color:var(--muted);font-size:.85em}
+.obj-more{display:block;width:100%;background:none;border:0;border-top:1px solid var(--line);color:var(--muted);font-weight:700;font-size:.85rem;padding:9px 16px;cursor:pointer;text-align:center}
+.obj-more:hover{color:var(--ink);background:#ffffff08}
 </style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%231c212b%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2218%22 text-anchor=%22middle%22 fill=%22%23ff7ac6%22%3E%E2%98%85%3C/text%3E%3C/svg%3E">
 </head>
@@ -539,6 +545,8 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   try{ var sv = JSON.parse(localStorage.getItem('gw2-ui')||'{}'); if(sv.cf) ui.cf = sv.cf; }catch(e){}
   var hashTab = {succes:'succes', festivals:'fest', nymos:'a', elodie:'b', jpawals:'b', jeff:'b', carnet:'carnet'}[location.hash.slice(1)];
   ui.tab = hashTab || me || 'carnet';
+  var exp = {}; try{ exp = JSON.parse(localStorage.getItem('gw2-exp')||'{}') || {}; }catch(e){}
+  function saveExp(){ try{ localStorage.setItem('gw2-exp', JSON.stringify(exp)); }catch(e){} }
   function saveUi(){ try{ localStorage.setItem('gw2-ui', JSON.stringify({cf:ui.cf})); }catch(e){} }
   function setMe(p){ me = p; try{ localStorage.setItem('gw2-me', p); }catch(e){} ui.tab = p; trackPresence(); touchSeen(); render(); }
 
@@ -1133,6 +1141,9 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
           ro ? null : h('button',{class:'ib danger','data-arm':ui.arm===o.id+'-t'+ti?'1':null,'aria-label':'Retirer cette tâche', text:ui.arm===o.id+'-t'+ti?'Retirer ?':'✕', onclick:function(){ armDelete(o.id+'-t'+ti, function(){ o.tasks.splice(ti,1); }); }})
         ]);
       });
+      var items = rows.concat(trows), LIM = 5, isOpen = !!exp[o.id];
+      var shownItems = isOpen ? items : items.slice(0, LIM);
+      var toggleOpen = function(){ if(isOpen) delete exp[o.id]; else exp[o.id] = 1; saveExp(); render(); };
       var adder = null;
       if(!ro){
         if(ui.addAch===o.id){
@@ -1156,7 +1167,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
         h('div',{class:'obj-head'},[
           ro ? null : h('span',{class:'grip', title:'Glisser pour déplacer', 'aria-hidden':'true', onpointerdown:function(e){ startDrag(e, l, oi); }},[ '⠿' ]),
           shared ? null : checks,
-          h('div',{class:'obj-main'},[ h('div',{class:'obj-title',text:o.title}), o.desc ? h('div',{class:'desc',text:o.desc}) : null, progs ]),
+          h('div',{class:'obj-main'+(items.length > LIM ? ' can-open' : ''), title: items.length > LIM ? (isOpen ? 'Cliquer pour replier' : 'Cliquer pour tout voir') : null, onclick: items.length > LIM ? function(e){ if(e.target.closest('button,a,input')) return; toggleOpen(); } : null},[ h('div',{class:'obj-title'},[ o.title, items.length > LIM ? h('span',{class:'obj-caret','aria-hidden':'true',text: isOpen ? ' ▴' : ' ▾'}) : null ]), o.desc ? h('div',{class:'desc',text:o.desc}) : null, progs ]),
           ro ? null : h('div',{class:'icons'},[
             h('button',{class:'ib', title:'Monter', 'aria-label':'Monter', disabled:oi===0, text:'↑', onclick:function(){ l.splice(oi-1,0,l.splice(oi,1)[0]); changed(); }}),
             h('button',{class:'ib', title:'Descendre', 'aria-label':'Descendre', disabled:oi===l.length-1, text:'↓', onclick:function(){ l.splice(oi+1,0,l.splice(oi,1)[0]); changed(); }}),
@@ -1164,7 +1175,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
             h('button',{class:'ib danger','data-arm':ui.arm===o.id?'1':null,'aria-label':'Supprimer l’objectif', text:ui.arm===o.id?'Supprimer ?':'✕', onclick:function(){ armDelete(o.id, function(){ l.splice(oi,1); }); }})
           ])
         ]),
-        rows.length || trows.length ? h('div',{class:'ach-list'},rows.concat(trows)) : null,
+        items.length ? h('div',{class:'ach-list'}, shownItems.concat(items.length > LIM ? [ h('button',{class:'obj-more', 'aria-expanded':String(isOpen), onclick:toggleOpen},[ isOpen ? 'Replier ▴' : 'Voir les '+(items.length-LIM)+' autres ▾' ]) ] : [])) : null,
         adder
       ]));
     });
