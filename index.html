@@ -311,7 +311,8 @@ button.state-pill.fin:not(:disabled):hover{filter:brightness(1.1)}
 .cat-row .in{color:var(--gold);font-weight:800}
 .pills{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .pill{font-size:.72rem;font-weight:800;border-radius:999px;padding:1px 7px;font-variant-numeric:tabular-nums;border:1.5px solid var(--pc);color:var(--pc);white-space:nowrap}
-.pill.done{background:var(--pc);color:#14101f}
+.pill.done{background:var(--ok);border-color:var(--ok);color:#0d2416}
+.pill.done .avatar{box-shadow:0 0 0 1.5px #0d2416}
 .pill.none{border-color:var(--line);color:var(--muted)}
 .more{width:100%;border:0;border-top:1px solid var(--line);background:var(--sunk);padding:10px;font-weight:700;color:var(--ink)}
 
@@ -499,6 +500,11 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 .fest-cat-h .mini .bar{width:70px}
 .pill{display:inline-flex;align-items:center;gap:4px}
 .pill .avatar{width:16px;height:16px;font-size:.5rem}
+
+.fest-sync{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 2px 0;font-size:.8rem;color:var(--muted)}
+.fest-sync-p{display:inline-flex;align-items:center;gap:6px}
+.fest-sync-p .avatar{width:18px;height:18px;font-size:.55rem}
+.fest-sync .sync-btn{margin-left:auto}
 </style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%231c212b%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2218%22 text-anchor=%22middle%22 fill=%22%23ff7ac6%22%3E%E2%98%85%3C/text%3E%3C/svg%3E">
 </head>
@@ -1230,6 +1236,9 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       var on = festActive(f);
       return h('button',{class:'chip'+(on?' fest-on':''),'aria-pressed':String(sel===f), onclick:function(){ ui.fsel=f.k; render(); }},[ f.ic+' '+f.n, on ? h('span',{class:'fest-live',text:'en cours'}) : null ]);
     })));
+    app.appendChild(h('div',{class:'fest-sync'}, P().map(function(p){
+      return h('span',{class:'fest-sync-p'},[ avatar(p), hasProg(p) ? 'Synchro '+ago(prog[p].at) : 'Pas encore synchronisé' ]);
+    }).concat([ getKey() && !readOnly() ? h('button',{class:'sync-btn', text: syncing ? 'Synchro…' : 'Synchroniser maintenant', onclick:function(){ syncGame(true); }}) : null ])));
     if(!sel){ app.appendChild(h('div',{class:'cat-list'},[ h('div',{class:'empty',text:'Choisissez un festival ci-dessus pour préparer ses succès à l’avance.'}) ])); return; }
     var fl = [['all','Tous']].concat(P().map(function(p){ return ['todo-'+p,'À faire pour '+nm(p)]; })).concat([['done-ab','Finis par les deux']]);
     app.appendChild(h('div',{class:'filters'}, fl.map(function(f){
@@ -1406,14 +1415,14 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
   function syncGame(force){
     var k = getKey(); if(!k || !me || syncing || status==='login') return Promise.resolve();
     syncing = true; if(force) render();
-    return fetch('https://api.guildwars2.com/v2/account/achievements?access_token='+encodeURIComponent(k))
+    return fetch('https://api.guildwars2.com/v2/account/achievements?access_token='+encodeURIComponent(k), {cache:'no-store'})
     .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
     .then(function(res){
       syncing = false;
       if(!res.ok || !Array.isArray(res.j)){ syncErr = 'Clé refusée par le jeu : '+((res.j&&res.j.text)||'erreur'); render(); return; }
       syncErr = '';
       var c = compact(res.j), old = prog[me] && prog[me].d, oldAcc = prog[me] && prog[me].acc;
-      return fetch('https://api.guildwars2.com/v2/account?access_token='+encodeURIComponent(k)).then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(a){
+      return fetch('https://api.guildwars2.com/v2/account?access_token='+encodeURIComponent(k), {cache:'no-store'}).then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(a){
         var acc = a && a.name ? {name:a.name, dap:a.daily_ap||0, map:a.monthly_ap||0} : oldAcc;
         var oldChars = prog[me] && prog[me].chars;
         return fetch('https://api.guildwars2.com/v2/characters?ids=all&access_token='+encodeURIComponent(k)).then(function(r){ return r.ok ? r.json() : 'noperm'; }).catch(function(){ return null; }).then(function(cs){
@@ -1535,6 +1544,8 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       touchSeen(); setInterval(function(){ if(document.visibilityState==='visible') touchSeen(); }, 3*60*1000);
       setInterval(function(){ if(!ui.sheet && !ui.importFor && !ui.editing && !ui.addAch && !ui.addTask && document.visibilityState==='visible') render(); }, 60*1000);
       syncGame(false);
+      setInterval(function(){ if(document.visibilityState==='visible') syncGame(false); }, 5*60*1000);
+      document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible' && prog[me] && Date.now()-new Date(prog[me].at).getTime() > 2*60*1000) syncGame(false); });
     })();
   }
   if(!window.supabase || !window.CARNET_CONFIG || /A_REMPLIR/.test(window.CARNET_CONFIG.url)){
