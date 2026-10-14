@@ -525,7 +525,13 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 .obj-caret{color:var(--muted);font-size:.85em}
 .obj-more{display:block;width:100%;background:none;border:0;border-top:1px solid var(--line);color:var(--muted);font-weight:700;font-size:.85rem;padding:9px 16px;cursor:pointer;text-align:center}
 .obj-more:hover{color:var(--ink);background:#ffffff08}
-.split-note{font-size:.78rem;color:var(--ok);margin-top:4px}
+.split-note{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.sn-chip{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:700;border-radius:999px;padding:3px 10px 3px 4px;border:1px solid var(--line);background:#ffffff06;color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s}
+.sn-chip b{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;font-size:.7rem;background:#ffffff12;color:var(--muted)}
+.sn-ok b{background:#4ade8026;color:var(--ok)}
+.sn-ok.on{border-color:#4ade8066;background:#4ade8014;color:#c4f5d6}
+.sn-todo.on{border-color:var(--muted);color:var(--ink)}
+.sn-chip:hover{border-color:var(--muted)}
 </style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%231c212b%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2218%22 text-anchor=%22middle%22 fill=%22%23ff7ac6%22%3E%E2%98%85%3C/text%3E%3C/svg%3E">
 </head>
@@ -1150,7 +1156,11 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       var LIM = 5, isOpen = !!exp[o.id+(view==='done'?':d':'')];
       var shownItems = isOpen ? items : items.slice(0, LIM);
       var toggleOpen = function(){ var ek = o.id+(view==='done'?':d':''); if(isOpen) delete exp[ek]; else exp[ek] = 1; saveExp(); render(); };
-      var splitNote = !isComplete && nItemsDone ? h('div',{class:'split-note'},[ view==='done' ? nItemsDone+' terminé'+(nItemsDone>1?'s':'')+' à deux · '+(allItems.length-nItemsDone)+' encore en cours' : nItemsDone+' déjà terminé'+(nItemsDone>1?'s':'')+' à deux, rangé'+(nItemsDone>1?'s':'')+' dans « Terminés »' ]) : null;
+      var nLeft = allItems.length - nItemsDone, pl = function(n,w){ return n+' '+w+(n>1?'s':''); };
+      var splitNote = !isComplete && nItemsDone ? h('div',{class:'split-note'},[
+        h('button',{class:'sn-chip sn-ok'+(view==='done'?' on':''), title:'Voir les terminés', onclick:function(){ ui.view='done'; render(); }},[ h('b',{text:'✓'}), pl(nItemsDone,'terminé') ]),
+        h('button',{class:'sn-chip sn-todo'+(view==='active'?' on':''), title:'Voir ce qu’il reste', onclick:function(){ ui.view='active'; render(); }},[ h('b',{text:'◷'}), pl(nLeft,'restant') ])
+      ]) : null;
       var adder = null;
       if(!ro && !(view==='done' && !isComplete)){
         if(ui.addAch===o.id){
