@@ -525,6 +525,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 .obj-caret{color:var(--muted);font-size:.85em}
 .obj-more{display:block;width:100%;background:none;border:0;border-top:1px solid var(--line);color:var(--muted);font-weight:700;font-size:.85rem;padding:9px 16px;cursor:pointer;text-align:center}
 .obj-more:hover{color:var(--ink);background:#ffffff08}
+.split-note{font-size:.78rem;color:var(--ok);margin-top:4px}
 </style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%231c212b%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2218%22 text-anchor=%22middle%22 fill=%22%23ff7ac6%22%3E%E2%98%85%3C/text%3E%3C/svg%3E">
 </head>
@@ -1089,7 +1090,9 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       : h('section',{class:'solo-head p'+key},[ avatar(key), h('div',{class:'grow'},[ h('div',{class:'eyebrow',text:'Objectifs solo'}), h('h2',{text:'Les objectifs de '+nm(key)}),
           h('div',{class:'num',text: l.length ? listTally(key,key)[0]+' / '+l.length+' objectifs terminés' : 'Pas encore d’objectif'}) ]),
           getKey() || ro || key!==me ? null : h('button',{class:'btn', style:'background:'+PCOL[key]+';border-color:'+PCOL[key], text:'Ajouter ma clé API', onclick:function(){ openImport(key); }}) ]);
-    var nDone = l.filter(function(o){ return ps.every(function(p){ return objDone(p,o); }); }).length, nAct = l.length - nDone;
+    var isFull = function(o){ return ps.every(function(p){ return objDone(p,o); }); };
+    var someDone = function(o){ return (o.achs||[]).some(function(x){ return ps.every(function(p){ return achDone(p,x); }); }) || (o.tasks||[]).some(function(t){ return ps.every(function(p){ return taskDone(p,t); }); }); };
+    var nDone = l.filter(function(o){ return isFull(o) || someDone(o); }).length, nAct = l.filter(function(o){ return !isFull(o); }).length;
     var view = ui.view==='done' ? 'done' : 'active';
     head.appendChild(h('div',{class:'vswitch', role:'tablist', 'aria-label':'Afficher'},[
       h('button',{role:'tab', 'aria-selected':String(view==='active'), onclick:function(){ ui.view='active'; render(); }},[ 'En cours ', h('span',{class:'count',text:String(nAct)}) ]),
@@ -1104,7 +1107,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
 
     if(!l.length && ui.editing!=='new-'+key) app.appendChild(h('div',{class:'cat-list'},[ h('div',{class:'empty',text:'Créez un objectif, donnez-lui une description, puis ajoutez les succès du jeu qui le composent (ou des tâches libres). La progression du jeu se met à jour automatiquement.'}) ]));
 
-    if(view==='done' && !nDone && l.length) app.appendChild(h('div',{class:'cat-list'},[ h('div',{class:'empty',text:'Aucun objectif terminé pour l’instant. Quand tous les succès et tâches d’un objectif sont faits, il arrive ici.'}) ]));
+    if(view==='done' && !nDone && l.length) app.appendChild(h('div',{class:'cat-list'},[ h('div',{class:'empty',text:'Rien de terminé pour l’instant. Chaque succès ou tâche fini à deux arrive ici, rangé sous son objectif.'}) ]));
     else if(view==='active' && l.length && !nAct && ui.editing!=='new-'+key) app.appendChild(h('div',{class:'cat-list'},[ h('div',{class:'empty',text:'Tout est terminé ! Retrouvez vos objectifs dans « Terminés », ou créez-en un nouveau.'}) ]));
     var order = l.map(function(o,oi){ return [o,oi]; });
     if(view==='done') order.sort(function(x,y){ return String(y[0].doneAt||'').localeCompare(String(x[0].doneAt||'')); });
@@ -1113,7 +1116,8 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
       o.achs = o.achs||[]; o.tasks = o.tasks||[]; o.done = o.done||{};
       var isComplete = ps.every(function(p){ return objDone(p,o); });
       if(!ro){ if(isComplete && !o.doneAt){ o.doneAt = new Date().toISOString(); stampChanged = true; } else if(!isComplete && o.doneAt){ delete o.doneAt; stampChanged = true; } }
-      if(ui.editing!==o.id && (view==='done') !== isComplete) return;
+      var partDone = !isComplete && someDone(o);
+      if(ui.editing!==o.id && (view==='done' ? !(isComplete || partDone) : isComplete)) return;
       if(ui.editing===o.id){ app.appendChild(h('div',{class:'obj'+(shared?' shared':' p'+key)},[ objForm(key, o, function(t,d){ o.title=t; o.desc=d; ui.editing=null; changed(); }, function(){ ui.editing=null; render(); }) ])); return; }
       var allDone = ps.every(function(p){ return objDone(p,o); });
       var checks = h('div',{class:'obj-checks'}, ps.map(function(p){
@@ -1141,11 +1145,14 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
           ro ? null : h('button',{class:'ib danger','data-arm':ui.arm===o.id+'-t'+ti?'1':null,'aria-label':'Retirer cette tâche', text:ui.arm===o.id+'-t'+ti?'Retirer ?':'✕', onclick:function(){ armDelete(o.id+'-t'+ti, function(){ o.tasks.splice(ti,1); }); }})
         ]);
       });
-      var items = rows.concat(trows), LIM = 5, isOpen = !!exp[o.id];
+      var allItems = rows.concat(trows), nItemsDone = allItems.filter(function(el){ return el.classList.contains('is-done'); }).length;
+      var items = isComplete ? allItems : allItems.filter(function(el){ return el.classList.contains('is-done') === (view==='done'); });
+      var LIM = 5, isOpen = !!exp[o.id+(view==='done'?':d':'')];
       var shownItems = isOpen ? items : items.slice(0, LIM);
-      var toggleOpen = function(){ if(isOpen) delete exp[o.id]; else exp[o.id] = 1; saveExp(); render(); };
+      var toggleOpen = function(){ var ek = o.id+(view==='done'?':d':''); if(isOpen) delete exp[ek]; else exp[ek] = 1; saveExp(); render(); };
+      var splitNote = !isComplete && nItemsDone ? h('div',{class:'split-note'},[ view==='done' ? nItemsDone+' terminé'+(nItemsDone>1?'s':'')+' à deux · '+(allItems.length-nItemsDone)+' encore en cours' : nItemsDone+' déjà terminé'+(nItemsDone>1?'s':'')+' à deux, rangé'+(nItemsDone>1?'s':'')+' dans « Terminés »' ]) : null;
       var adder = null;
-      if(!ro){
+      if(!ro && !(view==='done' && !isComplete)){
         if(ui.addAch===o.id){
           var inp = h('input',{type:'search', id:'oa-'+o.id, value:ui.addQ, placeholder:'Nom du succès à ajouter (ex. dracaille)', autocomplete:'off'});
           var box = h('div');
@@ -1167,7 +1174,7 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
         h('div',{class:'obj-head'},[
           ro ? null : h('span',{class:'grip', title:'Glisser pour déplacer', 'aria-hidden':'true', onpointerdown:function(e){ startDrag(e, l, oi); }},[ '⠿' ]),
           shared ? null : checks,
-          h('div',{class:'obj-main'+(items.length > LIM ? ' can-open' : ''), title: items.length > LIM ? (isOpen ? 'Cliquer pour replier' : 'Cliquer pour tout voir') : null, onclick: items.length > LIM ? function(e){ if(e.target.closest('button,a,input')) return; toggleOpen(); } : null},[ h('div',{class:'obj-title'},[ o.title, items.length > LIM ? h('span',{class:'obj-caret','aria-hidden':'true',text: isOpen ? ' ▴' : ' ▾'}) : null ]), o.desc ? h('div',{class:'desc',text:o.desc}) : null, progs ]),
+          h('div',{class:'obj-main'+(items.length > LIM ? ' can-open' : ''), title: items.length > LIM ? (isOpen ? 'Cliquer pour replier' : 'Cliquer pour tout voir') : null, onclick: items.length > LIM ? function(e){ if(e.target.closest('button,a,input')) return; toggleOpen(); } : null},[ h('div',{class:'obj-title'},[ o.title, items.length > LIM ? h('span',{class:'obj-caret','aria-hidden':'true',text: isOpen ? ' ▴' : ' ▾'}) : null ]), o.desc ? h('div',{class:'desc',text:o.desc}) : null, progs, splitNote ]),
           ro ? null : h('div',{class:'icons'},[
             h('button',{class:'ib', title:'Monter', 'aria-label':'Monter', disabled:oi===0, text:'↑', onclick:function(){ l.splice(oi-1,0,l.splice(oi,1)[0]); changed(); }}),
             h('button',{class:'ib', title:'Descendre', 'aria-label':'Descendre', disabled:oi===l.length-1, text:'↓', onclick:function(){ l.splice(oi+1,0,l.splice(oi,1)[0]); changed(); }}),
