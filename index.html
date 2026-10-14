@@ -1157,7 +1157,7 @@ button.sn-chip:hover{border-color:var(--muted)}
       var peekKey = o.id+(view==='done'?':d':':a'), peek = !!(ui.peek||{})[peekKey];
       var isD = function(el){ return el.classList.contains('is-done'); };
       var mainItems = allItems.filter(function(el){ return isD(el) === (view==='done'); }), extra = allItems.filter(function(el){ return isD(el) !== (view==='done'); });
-      var items = isComplete ? allItems : (peek ? extra.concat(mainItems) : mainItems);
+      var items = isComplete ? allItems : (peek ? (view==='done' ? mainItems.concat(extra) : extra.concat(mainItems)) : mainItems);
       var LIM = 5, isOpen = !!exp[o.id+(view==='done'?':d':'')];
       var shownItems = isOpen ? items : items.slice(0, LIM);
       var toggleOpen = function(){ var ek = o.id+(view==='done'?':d':''); if(isOpen) delete exp[ek]; else exp[ek] = 1; saveExp(); render(); };
