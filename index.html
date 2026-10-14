@@ -313,7 +313,10 @@ button.state-pill.fin:not(:disabled):hover{filter:brightness(1.1)}
 .pill{font-size:.72rem;font-weight:800;border-radius:999px;padding:1px 7px;font-variant-numeric:tabular-nums;border:1.5px solid var(--pc);color:var(--pc);white-space:nowrap}
 .pill.done{background:var(--ok);border-color:var(--ok);color:#0d2416}
 .pill.done .avatar{box-shadow:0 0 0 1.5px #0d2416}
-.pill.none{border-color:var(--line);color:var(--muted)}
+.pill.none{border-color:#f87171;color:#f87171;background:#f8717114}
+.pill.none .avatar{opacity:.85}
+.cat-row.is-done{background:linear-gradient(90deg,#1d3a2ecc,#1d3a2e55);box-shadow:inset 3px 0 0 var(--ok)}
+.cat-row.is-done .r-name{color:#c4f5d6}
 .more{width:100%;border:0;border-top:1px solid var(--line);background:var(--sunk);padding:10px;font-weight:700;color:var(--ink)}
 
 /* fiche succès (style jeu) */
@@ -1270,8 +1273,9 @@ code{font-size:.85em;background:var(--sunk);border-radius:4px;padding:1px 5px;ov
     }));
   }
   function catRow(a,q){
-    var inC = tracked(a[0]).length>0;
-    return h('button',{class:'cat-row', onclick:function(){ openSheet(a[0]); }},[
+    var inC = tracked(a[0]).length>0, ps = P().filter(hasProg);
+    var both = ps.length && ps.every(function(p){ return apiDone(p,a[0]); });
+    return h('button',{class:'cat-row'+(both?' is-done':''), onclick:function(){ openSheet(a[0]); }},[
       iconEl(a),
       h('div',{style:'min-width:0'},[ h('div',{class:'r-name'},[ hl(a[1],q), inC ? h('span',{class:'in',title:'Déjà suivi',text:' ★'}) : null ]), h('div',{class:'r-cat',text:catOf(a)[2]+' › '+catOf(a)[1]+' · '+a[4]+' pts'}) ]),
       pills(a)
