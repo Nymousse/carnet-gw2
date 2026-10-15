@@ -535,6 +535,8 @@ button.sn-chip:hover{border-color:var(--muted)}
 .sn-ok.on{border-color:#4ade8066;background:#4ade8014;color:#c4f5d6}
 .sn-todo.on{border-color:var(--muted);color:var(--ink);background:#ffffff10}
 button.sn-chip.on{cursor:default}
+.jp-head{--pc:#5fd3c6;--pcs:#5fd3c622}
+.jp-ic{color:#5fd3c6}
 </style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%231c212b%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2218%22 text-anchor=%22middle%22 fill=%22%23ff7ac6%22%3E%E2%98%85%3C/text%3E%3C/svg%3E">
 </head>
@@ -553,7 +555,7 @@ button.sn-chip.on{cursor:default}
   var me = null;
   try{ me = localStorage.getItem('gw2-me'); if(me!=='a' && me!=='b') me=null; }catch(e){}
   try{ var sv = JSON.parse(localStorage.getItem('gw2-ui')||'{}'); if(sv.cf) ui.cf = sv.cf; }catch(e){}
-  var hashTab = {succes:'succes', festivals:'fest', nymos:'a', elodie:'b', jpawals:'b', jeff:'b', carnet:'carnet'}[location.hash.slice(1)];
+  var hashTab = {succes:'succes', festivals:'fest', jp:'jp', puzzles:'jp', nymos:'a', elodie:'b', jpawals:'b', jeff:'b', carnet:'carnet'}[location.hash.slice(1)];
   ui.tab = hashTab || me || 'carnet';
   var exp = {}; try{ exp = JSON.parse(localStorage.getItem('gw2-exp')||'{}') || {}; }catch(e){}
   function saveExp(){ try{ localStorage.setItem('gw2-exp', JSON.stringify(exp)); }catch(e){} }
@@ -1048,11 +1050,13 @@ button.sn-chip.on{cursor:default}
       tabBtn('carnet',['Notre carnet', h('span',{class:'count',text:String(list('carnet').length)})])
     ].concat(ptabs).concat([
       tabBtn('fest',[ h('span',{class:'fest-ic','aria-hidden':'true',text:'✦'}), 'Festivals', h('span',{class:'count',text: festAchs() ? String(festAchs().length) : '…'})], '#ff9f43'),
+      tabBtn('jp',[ h('span',{class:'fest-ic jp-ic','aria-hidden':'true',text:'⤒'}), 'Puzzles de saut', h('span',{class:'count',text: jpData() ? String(jpData().total) : '…'})], '#5fd3c6'),
       tabBtn('succes',['Tous les succès', h('span',{class:'count',text:catalog?catalog.A.length.toLocaleString('fr-FR'):'…'})])
     ])));
 
     if(ui.tab==='succes') renderCatalog();
     else if(ui.tab==='fest') renderFest();
+    else if(ui.tab==='jp') renderJP();
     else renderList(ui.tab==='a'||ui.tab==='b' ? ui.tab : 'carnet');
 
     app.appendChild(h('footer',{class:'foot'},[
@@ -1254,8 +1258,9 @@ button.sn-chip.on{cursor:default}
   }
   /* ---------- une catégorie entière : en-tête, progression à deux, ajout groupé, liste complète ---------- */
   function filtAch(f){ return function(a){ switch(f){ case 'todo-a': return !apiDone('a',a[0]); case 'todo-b': return !apiDone('b',a[0]); case 'done-ab': return apiDone('a',a[0]) && apiDone('b',a[0]); case 'carnet': return tracked(a[0]).length>0; } return true; }; }
-  function catSection(i, open, f, foldable){
-    var c = catalog.C[i], all = byCat[i] || [], lst = all.filter(filtAch(f));
+  function catSection(i, open, f, foldable, opt){
+    var c = opt ? [0, opt.name, '', opt.icon] : catalog.C[i], all = opt ? opt.list : (byCat[i] || []), lst = all.filter(filtAch(f));
+    if(opt) i = opt.key;
     var tallies = P().map(function(p){
       if(!hasProg(p)) return null;
       var x = [all.filter(function(a){ return apiDone(p,a[0]); }).length, all.length];
@@ -1283,6 +1288,46 @@ button.sn-chip.on{cursor:default}
       kids.push(h('div',{class:'cat-list'}, lst.length ? lst.map(function(a){ return catRow(a,''); }) : [ h('div',{class:'empty',text:'Rien à afficher avec ce filtre.'}) ]));
     }
     return h('div',{class:'fest-cat'}, kids);
+  }
+
+  /* ---------- puzzles de saut : la catégorie du jeu + ceux des extensions ---------- */
+  var jpCache = null;
+  function jpData(){
+    if(!catalog) return null; if(jpCache) return jpCache;
+    var core = -1; catalog.C.forEach(function(c,i){ if(c[0]===14) core = i; });
+    var re = /puzzles? de saut/i, groups = {}, order = [];
+    catalog.A.forEach(function(a){
+      if(a[3]===core) return;
+      var c = catOf(a); if(!c || c[2]==='Historique' || c[2]==='Quotidien') return;
+      if(!re.test(a[1]+' '+a[2]) || /quotidien/i.test(a[1])) return;
+      if(!groups[c[2]]){ groups[c[2]] = []; order.push(c[2]); }
+      groups[c[2]].push(a);
+    });
+    var rank = ['Général','Heart of Thorns','Path\u00a0of\u00a0Fire','End\u00a0of\u00a0Dragons','Secrets\u00a0of\u00a0the\u00a0Obscure','Janthir\u00a0Wilds','Visions\u00a0of\u00a0Eternity','Histoires secondaires','Chroniques','Fractales des Brumes'];
+    order.sort(function(x,y){ var a = rank.indexOf(x), b = rank.indexOf(y); return (a<0?99:a) - (b<0?99:b); });
+    var total = (core>=0 ? (byCat[core]||[]).length : 0);
+    order.forEach(function(g){ total += groups[g].length; });
+    jpCache = {core:core, groups:groups, order:order, total:total};
+    return jpCache;
+  }
+  function renderJP(){
+    var d = jpData(); if(!d){ app.appendChild(h('p',{class:'hint',text:'Chargement des succès…'})); return; }
+    var all = (d.core>=0 ? byCat[d.core]||[] : []).slice(); d.order.forEach(function(g){ all = all.concat(d.groups[g]); });
+    app.appendChild(h('section',{class:'solo-head jp-head'},[
+      h('span',{class:'avatar fest-av'},[ d.core>=0 && catalog.C[d.core][3] ? h('img',{src:catalog.C[d.core][3], alt:''}) : '⤒' ]),
+      h('div',{class:'grow'},[ h('div',{class:'eyebrow',text:'Sauter, grimper, tomber, recommencer'}), h('h2',{text:'Puzzles de saut'}),
+        h('div',{class:'who-mini'}, P().map(function(p){ if(!hasProg(p)) return null; var x = [all.filter(function(a){ return apiDone(p,a[0]); }).length, all.length]; return h('span',{class:'mini',title:nm(p)},[ avatar(p), h('span',{class:'num',text:x[0]+'/'+x[1]}), bar(x,PCOL[p]) ]); })) ])
+    ]));
+    var fl = [['all','Tous']].concat(P().map(function(p){ return ['todo-'+p,'À faire pour '+nm(p)]; })).concat([['done-ab','Finis par les deux']]);
+    app.appendChild(h('div',{class:'filters'}, fl.map(function(f){
+      return h('button',{class:'chip','aria-pressed':String((ui.jf||'all')===f[0]), onclick:function(){ ui.jf=f[0]; render(); }},[ f[1] ]);
+    })));
+    if(d.core>=0) app.appendChild(catSection(d.core, ui.open['jp-core']!==false, ui.jf||'all', false, {key:'jp-core', name:'Tyrie centrale', icon:catalog.C[d.core][3], list:byCat[d.core]||[]}));
+    d.order.forEach(function(g){
+      var k = 'jp-'+g, ic = (d.groups[g][0] && catOf(d.groups[g][0])[3]) || null;
+      app.appendChild(catSection(k, !!ui.open[k], ui.jf||'all', true, {key:k, name:g, icon:ic, list:d.groups[g]}));
+    });
+    app.appendChild(h('div',{class:'hint',text:'Tyrie centrale : la catégorie « Puzzles de saut » du jeu. Extensions : les succès dont la description parle d’un puzzle de saut (hors quotidiens et festivals).'}));
   }
 
   /* ---------- festivals : les catégories du jeu, affichées selon le calendrier habituel ---------- */
