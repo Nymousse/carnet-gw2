@@ -1050,7 +1050,7 @@ button.sn-chip.on{cursor:default}
       tabBtn('carnet',['Notre carnet', h('span',{class:'count',text:String(list('carnet').length)})])
     ].concat(ptabs).concat([
       tabBtn('fest',[ h('span',{class:'fest-ic','aria-hidden':'true',text:'✦'}), 'Festivals', h('span',{class:'count',text: festAchs() ? String(festAchs().length) : '…'})], '#ff9f43'),
-      tabBtn('jp',[ h('span',{class:'fest-ic jp-ic','aria-hidden':'true',text:'⤒'}), 'Puzzles de saut', h('span',{class:'count',text: jpData() ? String(jpData().total) : '…'})], '#5fd3c6'),
+      tabBtn('jp',[ h('span',{class:'fest-ic jp-ic','aria-hidden':'true',text:'⤒'}), 'Jumping Puzzles', h('span',{class:'count',text: jpData() ? String(jpData().total) : '…'})], '#5fd3c6'),
       tabBtn('succes',['Tous les succès', h('span',{class:'count',text:catalog?catalog.A.length.toLocaleString('fr-FR'):'…'})])
     ])));
 
@@ -1315,7 +1315,7 @@ button.sn-chip.on{cursor:default}
     var all = (d.core>=0 ? byCat[d.core]||[] : []).slice(); d.order.forEach(function(g){ all = all.concat(d.groups[g]); });
     app.appendChild(h('section',{class:'solo-head jp-head'},[
       h('span',{class:'avatar fest-av'},[ d.core>=0 && catalog.C[d.core][3] ? h('img',{src:catalog.C[d.core][3], alt:''}) : '⤒' ]),
-      h('div',{class:'grow'},[ h('div',{class:'eyebrow',text:'Sauter, grimper, tomber, recommencer'}), h('h2',{text:'Puzzles de saut'}),
+      h('div',{class:'grow'},[ h('div',{class:'eyebrow',text:'Sauter, grimper, tomber, recommencer'}), h('h2',{text:'Jumping Puzzles'}),
         h('div',{class:'who-mini'}, P().map(function(p){ if(!hasProg(p)) return null; var x = [all.filter(function(a){ return apiDone(p,a[0]); }).length, all.length]; return h('span',{class:'mini',title:nm(p)},[ avatar(p), h('span',{class:'num',text:x[0]+'/'+x[1]}), bar(x,PCOL[p]) ]); })) ])
     ]));
     var fl = [['all','Tous']].concat(P().map(function(p){ return ['todo-'+p,'À faire pour '+nm(p)]; })).concat([['done-ab','Finis par les deux']]);
