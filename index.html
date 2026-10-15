@@ -1051,7 +1051,7 @@ button.sn-chip.on{cursor:default}
     ].concat(ptabs).concat([
       tabBtn('fest',[ h('span',{class:'fest-ic','aria-hidden':'true',text:'✦'}), 'Festivals', h('span',{class:'count',text: festAchs() ? String(festAchs().length) : '…'})], '#ff9f43'),
       tabBtn('jp',[ h('span',{class:'fest-ic jp-ic','aria-hidden':'true',text:'⤒'}), 'Jumping Puzzles', h('span',{class:'count',text: jpData() ? String(jpData().total) : '…'})], '#5fd3c6'),
-      tabBtn('succes',['Tous les succès', h('span',{class:'count',text:catalog?catalog.A.length.toLocaleString('fr-FR'):'…'})])
+      tabBtn('succes',['Tous les succès'])
     ])));
 
     if(ui.tab==='succes') renderCatalog();
